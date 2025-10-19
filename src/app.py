@@ -7,6 +7,7 @@ import numpy as np
 
 # Importamos la lógica de entrenamiento RBF
 from entrenamientoRBF import EntrenamientoRBF
+from interpolacionRBF import InterpolacionRBF
 
 DATASETS_FOLDER = Path("datasets")
 
@@ -15,7 +16,7 @@ class RBFApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Red Neuronal de Funciones de Base Radial (RBF)")
-        self.geometry("1200x650")
+        self.geometry("1800x950")
         self.resizable(True, True)
 
         # Estado actual
@@ -28,6 +29,7 @@ class RBFApp(tk.Tk):
 
         # Instancia del módulo de entrenamiento
         self.entrenamiento_rbf = EntrenamientoRBF()
+        self.interpolacion_rbf = InterpolacionRBF()
 
         # --------------------------------------
         # Barra superior
@@ -146,7 +148,7 @@ class RBFApp(tk.Tk):
         error_frame.pack(fill=tk.X, pady=6)
         tk.Label(error_frame, text="Ingrese ε (0 < ε ≤ 0.1):").pack(anchor="w")
         self.entry_error_optimo = tk.Entry(error_frame, width=10)
-        self.entry_error_optimo.insert(0, "0.05")
+        self.entry_error_optimo.insert(0, "0.1")
         self.entry_error_optimo.pack(anchor="w", pady=4)
 
         tk.Button(
@@ -154,11 +156,34 @@ class RBFApp(tk.Tk):
             command=self.calcular_distancias_y_fa
         ).pack(anchor="w", pady=6)
 
-        result_frame = tk.LabelFrame(right, text="Resultados D y FA", padx=6, pady=6)
-        result_frame.pack(fill=tk.BOTH, expand=True, pady=8)
-        self.txt_resultados = tk.Text(result_frame, height=12, wrap="word")
-        self.txt_resultados.pack(fill=tk.BOTH, expand=True)
-        self.txt_resultados.configure(state="disabled")
+        tk.Button(
+            error_frame, text="Calcular Matriz de Interpolación y Pesos",
+            command=self.calcular_interpolacion_y_pesos
+        ).pack(anchor="w", pady=6)
+
+
+        # ================================
+        # Panel dividido para los resultados
+        # ================================
+        result_container = tk.Frame(right)
+        result_container.pack(fill=tk.BOTH, expand=True, pady=8)
+
+        # Frame izquierdo: Distancias y FA
+        frame_dist = tk.LabelFrame(result_container, text="Resultados: Distancias y FA", padx=6, pady=6)
+        frame_dist.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+
+        self.txt_resultados_dist = tk.Text(frame_dist, height=20, wrap="word")
+        self.txt_resultados_dist.pack(fill=tk.BOTH, expand=True)
+        self.txt_resultados_dist.configure(state="disabled")
+
+        # Frame derecho: Matriz de Interpolación y Pesos
+        frame_interp = tk.LabelFrame(result_container, text="Matriz de Interpolación y Pesos", padx=6, pady=6)
+        frame_interp.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+
+        self.txt_resultados_interp = tk.Text(frame_interp, height=20, wrap="word")
+        self.txt_resultados_interp.pack(fill=tk.BOTH, expand=True)
+        self.txt_resultados_interp.configure(state="disabled")
+
 
     # ==========================================
     # Vista: SIMULACIÓN
@@ -300,13 +325,32 @@ class RBFApp(tk.Tk):
         self.entrenamiento_rbf.calcular_funcion_activacion()
 
         resumen = self.entrenamiento_rbf.generar_resumen_texto(max_rows=50)
-        self.txt_resultados.configure(state="normal")
-        self.txt_resultados.delete("1.0", tk.END)
-        self.txt_resultados.insert(tk.END, resumen)
-        self.txt_resultados.configure(state="disabled")
+        self.txt_resultados_dist.configure(state="normal")
+        self.txt_resultados_dist.delete("1.0", tk.END)
+        self.txt_resultados_dist.insert(tk.END, resumen)
+        self.txt_resultados_dist.configure(state="disabled")
+
 
         messagebox.showinfo("Cálculos completados", "Distancias y FA calculadas correctamente.")
 
+    def calcular_interpolacion_y_pesos(self):
+        if self.entrenamiento_rbf.funcion_activacion is None:
+            messagebox.showwarning("Faltan datos", "Debe calcular la función de activación primero.")
+            return
+
+        Y = self.current_train.iloc[:, -1].to_numpy(dtype=float)
+        FA = self.entrenamiento_rbf.funcion_activacion
+
+        self.interpolacion_rbf.calcular_pesos(FA, Y)
+        resumen = self.interpolacion_rbf.generar_resumen_texto()
+
+        self.txt_resultados_interp.configure(state="normal")
+        self.txt_resultados_interp.delete("1.0", tk.END)
+        self.txt_resultados_interp.insert(tk.END, resumen)
+        self.txt_resultados_interp.configure(state="disabled")
+
+
+        messagebox.showinfo("Matriz A y Pesos", "Cálculo de la matriz de interpolación y pesos completado.")
 
 # ==========================================
 # Punto de entrada
