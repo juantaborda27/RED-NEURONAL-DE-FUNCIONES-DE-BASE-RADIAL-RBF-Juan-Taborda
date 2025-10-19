@@ -8,6 +8,8 @@ import numpy as np
 # Importamos la lógica de entrenamiento RBF
 from entrenamientoRBF import EntrenamientoRBF
 from interpolacionRBF import InterpolacionRBF
+from guardar_resultados import GuardarResultadosRBF
+
 
 DATASETS_FOLDER = Path("datasets")
 
@@ -30,6 +32,7 @@ class RBFApp(tk.Tk):
         # Instancia del módulo de entrenamiento
         self.entrenamiento_rbf = EntrenamientoRBF()
         self.interpolacion_rbf = InterpolacionRBF()
+        self.guardar_resultados = GuardarResultadosRBF()
 
         # --------------------------------------
         # Barra superior
@@ -160,6 +163,12 @@ class RBFApp(tk.Tk):
             error_frame, text="Calcular Matriz de Interpolación y Pesos",
             command=self.calcular_interpolacion_y_pesos
         ).pack(anchor="w", pady=6)
+
+        tk.Button(
+            error_frame, text="💾 Guardar Entrenamiento en JSON",
+            command=self.guardar_entrenamiento_json
+        ).pack(anchor="w", pady=6)
+
 
 
         # ================================
@@ -351,6 +360,29 @@ class RBFApp(tk.Tk):
 
 
         messagebox.showinfo("Matriz A y Pesos", "Cálculo de la matriz de interpolación y pesos completado.")
+
+    def guardar_entrenamiento_json(self):
+        """Guarda toda la información del entrenamiento en un archivo JSON."""
+        if self.summary is None:
+            messagebox.showwarning("Sin datos", "Debe cargar un dataset antes de guardar.")
+            return
+
+        resumen = {
+            "entradas": self.summary.get("entradas"),
+            "salidas": self.summary.get("salidas"),
+            "patrones": self.summary.get("patrones"),
+            "error_optimo": self.entrenamiento_rbf.error_optimo,
+            "num_centros": self.n_centros
+        }
+
+        centros = self.centros_radiales
+        distancias = self.entrenamiento_rbf.distancias
+        fa = self.entrenamiento_rbf.funcion_activacion
+        matriz_interp = self.interpolacion_rbf.matriz_A if hasattr(self.interpolacion_rbf, "matriz_A") else None
+        pesos = self.interpolacion_rbf.pesos if hasattr(self.interpolacion_rbf, "pesos") else None
+
+        self.guardar_resultados.guardar(resumen, centros, distancias, fa, matriz_interp, pesos)
+
 
 # ==========================================
 # Punto de entrada
