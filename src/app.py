@@ -94,8 +94,7 @@ class RBFApp(tk.Tk):
 
         files = self.scan_datasets()
         self.dataset_combobox["values"] = files
-        if files:
-            self.dataset_combobox.current(0)
+        # No carga automática
         self.dataset_combobox.bind("<<ComboboxSelected>>", self.on_dataset_selected)
 
         tk.Button(left, text="Cargar otro archivo...", command=self.load_other_file).pack(anchor="w", pady=6)
@@ -161,9 +160,6 @@ class RBFApp(tk.Tk):
         self.txt_resultados.pack(fill=tk.BOTH, expand=True)
         self.txt_resultados.configure(state="disabled")
 
-        if files:
-            self.on_dataset_selected()
-
     # ==========================================
     # Vista: SIMULACIÓN
     # ==========================================
@@ -203,8 +199,12 @@ class RBFApp(tk.Tk):
             return
 
         total_patrones = len(df)
-        df_train = df.sample(frac=0.7, random_state=42)
-        df_test = df.drop(df_train.index)
+        train_size = int(0.7 * total_patrones)
+
+        # ✅ 70% inicial → entrenamiento | 30% final → simulación
+        df_train = df.iloc[:train_size].copy()   # primeras filas (70%)
+        df_test = df.iloc[train_size:].copy()    # últimas filas (30%)
+
         self.current_train = df_train.reset_index(drop=True)
         self.current_test = df_test.reset_index(drop=True)
         self.current_path = sel
@@ -233,8 +233,8 @@ class RBFApp(tk.Tk):
         messagebox.showinfo(
             "Partición completada",
             f"Dataset '{Path(sel).name}' dividido automáticamente:\n"
-            f"→ 70% entrenamiento ({len(df_train)})\n"
-            f"→ 30% simulación ({len(df_test)})"
+            f"→ 70% (primeros valores) para entrenamiento ({len(df_train)})\n"
+            f"→ 30% (últimos valores) para simulación ({len(df_test)})"
         )
 
     def set_num_centros(self):
@@ -299,7 +299,7 @@ class RBFApp(tk.Tk):
         self.entrenamiento_rbf.calcular_distancias(X, self.centros_radiales)
         self.entrenamiento_rbf.calcular_funcion_activacion()
 
-        resumen = self.entrenamiento_rbf.generar_resumen_texto()
+        resumen = self.entrenamiento_rbf.generar_resumen_texto(max_rows=50)
         self.txt_resultados.configure(state="normal")
         self.txt_resultados.delete("1.0", tk.END)
         self.txt_resultados.insert(tk.END, resumen)

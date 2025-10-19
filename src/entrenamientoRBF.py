@@ -1,4 +1,4 @@
-# src/entrenamientoRBF.py
+# src/entrenamientoRBF.py (fragmento reemplazo)
 import numpy as np
 from tkinter import messagebox
 
@@ -8,68 +8,65 @@ class EntrenamientoRBF:
         self.error_optimo = None
         self.distancias = None
         self.funcion_activacion = None
+        self.patrones = None  # guardamos los X usados (por fila) para mostrar
 
-    # ------------------------------------------------------------
-    # Validar error de aproximación óptimo
-    # ------------------------------------------------------------
     def set_error_optimo(self, valor: float):
-        """Valida que el error esté entre 0 y 0.1."""
         if valor <= 0 or valor > 0.1:
             messagebox.showerror("Error inválido", "El error óptimo debe estar entre 0 y 0.1")
             return False
         self.error_optimo = valor
         return True
 
-    # ------------------------------------------------------------
-    # Calcular distancias euclidianas
-    # ------------------------------------------------------------
     def calcular_distancias(self, X: np.ndarray, R: np.ndarray):
         """
-        Calcula la distancia euclidiana entre cada vector de entrada (X_i)
-        y cada centro radial (R_j).
-        Devuelve una matriz D de tamaño (n_patrones, n_centros).
+        Vectorizado:
+        - X: (N, n_inputs)
+        - R: (M, n_inputs)
+        Resultado D: (N, M)
+        Además guarda self.patrones = X para poder mostrar el vector de cada fila.
         """
         if X is None or R is None:
             messagebox.showerror("Datos faltantes", "Debe inicializar los centros radiales y cargar el dataset.")
             return None
 
-        n_patrones, n_entradas = X.shape
-        n_centros = R.shape[0]
+        # Guardar patrones (orden y valores exactos)
+        self.patrones = np.asarray(X, dtype=float)
 
-        D = np.zeros((n_patrones, n_centros))
-        for i in range(n_patrones):
-            for j in range(n_centros):
-                D[i, j] = np.sqrt(np.sum((X[i] - R[j]) ** 2))
+        # Vectorized distance: broadcasting and norm over last axis
+        # Shape: (N, 1, n_inputs) - (1, M, n_inputs) -> (N, M, n_inputs)
+        diff = self.patrones[:, None, :] - np.asarray(R)[None, :, :]
+        D = np.linalg.norm(diff, axis=2)  # (N, M)
 
-        self.distancias = D
-        return D
+        # Guardar con suficiente precisión
+        self.distancias = np.round(D, 6)
+        return self.distancias
 
-    # ------------------------------------------------------------
-    # Calcular función de activación FA = D² * ln(D)
-    # ------------------------------------------------------------
     def calcular_funcion_activacion(self):
-        """Calcula la función FA = D² * ln(D) evitando log(0)."""
         if self.distancias is None:
             messagebox.showerror("Sin distancias", "Debe calcular las distancias primero.")
             return None
 
         D = self.distancias.copy()
+        D_safe = np.where(D <= 0, 1e-12, D)
         with np.errstate(divide='ignore', invalid='ignore'):
-            FA = np.where(D > 0, D**2 * np.log(D), 0)
+            FA = D_safe**2 * np.log(D_safe)
+        FA = np.nan_to_num(FA, nan=0.0, posinf=0.0, neginf=0.0)
+        self.funcion_activacion = np.round(FA, 6)
+        return self.funcion_activacion
 
-        self.funcion_activacion = FA
-        return FA
-
-    # ------------------------------------------------------------
-    # Función auxiliar para generar resumen en texto
-    # ------------------------------------------------------------
-    def generar_resumen_texto(self):
-        """Devuelve texto con los valores de D y FA."""
-        if self.distancias is None or self.funcion_activacion is None:
+    def generar_resumen_texto(self, max_rows: int = 20):
+        """Construye un texto que mapea cada patrón X_i a su fila D[i] y FA[i]."""
+        if self.distancias is None or self.funcion_activacion is None or self.patrones is None:
             return "Aún no se han calculado distancias ni función de activación."
 
-        texto = "=== DISTANCIAS EUCLIDIANAS (D) ===\n"
-        texto += np.array2string(self.distancias, precision=4, suppress_small=True)
-        texto += "\n\n=== FUNCIÓN DE ACTIVACIÓN (FA = D² * ln(D)) ===\n"
-        texto += np.array2string(self.funcion_activacion, precision=4, suppress_small=True)
-        return texto
+        N, M = self.distancias.shape
+        lines = []
+        lines.append("=== MAPEADO PATRÓN -> DISTANCIAS (D) ===\n")
+        for i in range(min(N, max_rows)):
+            xvec = np.array2string(self.patrones[i], precision=4, separator=", ")
+            drow = np.array2string(self.distancias[i], precision=4, separator=", ")
+            farow = np.array2string(self.funcion_activacion[i], precision=4, separator=", ")
+            lines.append(f"Patrón {i}: X={xvec}\n  D: {drow}\n  FA: {farow}\n")
+        if N > max_rows:
+            lines.append(f"... (se mostraron {max_rows} de {N} patrones)\n")
+        return "\n".join(lines)
