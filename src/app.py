@@ -9,6 +9,7 @@ import numpy as np
 from entrenamientoRBF import EntrenamientoRBF
 from interpolacionRBF import InterpolacionRBF
 from guardar_resultados import GuardarResultadosRBF
+from preprocesamiento import Preprocesador
 
 
 DATASETS_FOLDER = Path("datasets")
@@ -33,12 +34,20 @@ class RBFApp(tk.Tk):
         self.entrenamiento_rbf = EntrenamientoRBF()
         self.interpolacion_rbf = InterpolacionRBF()
         self.guardar_resultados = GuardarResultadosRBF()
+        self.preprocesador = Preprocesador()
 
         # --------------------------------------
         # Barra superior
         # --------------------------------------
         top_frame = tk.Frame(self)
         top_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+        self.bt_preprocesamiento = tk.Button(
+            top_frame, text="PREPROCESAMIENTO", width=18, height=2,
+            command=self.show_preprocesamiento_view
+        )
+        self.bt_preprocesamiento.pack(side=tk.LEFT, padx=10)
+
 
         self.bt_entrenamiento = tk.Button(
             top_frame, text="ENTRENAMIENTO", width=18, height=2,
@@ -382,6 +391,184 @@ class RBFApp(tk.Tk):
         pesos = self.interpolacion_rbf.pesos if hasattr(self.interpolacion_rbf, "pesos") else None
 
         self.guardar_resultados.guardar(resumen, centros, distancias, fa, matriz_interp, pesos)
+
+    # ==========================================
+    # Vista: PREPROCESAMIENTO
+    # ==========================================
+    def show_preprocesamiento_view(self):
+        self.clear_content()
+        frame = tk.Frame(self.content)
+        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        left = tk.Frame(frame)
+        left.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+
+        tk.Label(left, text="Seleccionar dataset para preprocesar:", font=("Arial", 11, "bold")).pack(anchor="w")
+        self.prep_dataset_combobox = ttk.Combobox(left, state="readonly", width=60)
+        self.prep_dataset_combobox.pack(anchor="w", pady=5)
+        files = self.scan_datasets()
+        self.prep_dataset_combobox["values"] = files
+        self.prep_dataset_combobox.bind("<<ComboboxSelected>>", self.on_preproc_dataset_selected)
+
+        tk.Button(left, text="Cargar otro archivo...", command=lambda: self.load_other_file()).pack(anchor="w", pady=6)
+
+        # Opciones de preprocesamiento
+        opts_frame = tk.LabelFrame(left, text="Opciones de preprocesamiento", padx=6, pady=6)
+        opts_frame.pack(fill=tk.X, pady=6)
+
+        tk.Label(opts_frame, text="Método de relleno (numérico):").pack(anchor="w")
+        self.combo_fill = ttk.Combobox(opts_frame, values=["mean", "median", "mode", "ffill", "bfill"], state="readonly", width=12)
+        self.combo_fill.set("mean")
+        self.combo_fill.pack(anchor="w", pady=4)
+
+        tk.Label(opts_frame, text="Relleno categórico:").pack(anchor="w")
+        self.combo_fill_cat = ttk.Combobox(opts_frame, values=["mode", "unknown"], state="readonly", width=12)
+        self.combo_fill_cat.set("mode")
+        self.combo_fill_cat.pack(anchor="w", pady=4)
+
+        tk.Label(opts_frame, text="Eliminar columnas con > % faltantes:").pack(anchor="w")
+        self.entry_drop_thr = tk.Entry(opts_frame, width=6)
+        self.entry_drop_thr.insert(0, "0.5")
+        self.entry_drop_thr.pack(anchor="w", pady=4)
+
+        tk.Label(opts_frame, text="Escalado X:").pack(anchor="w")
+        self.combo_scale = ttk.Combobox(opts_frame, values=["None", "standard", "minmax"], state="readonly", width=12)
+        self.combo_scale.set("None")
+        self.combo_scale.pack(anchor="w", pady=4)
+
+        tk.Label(opts_frame, text="Columna Y (dejar vacío → última columna):").pack(anchor="w")
+        self.entry_ycol = tk.Entry(opts_frame, width=20)
+        self.entry_ycol.pack(anchor="w", pady=4)
+
+        tk.Button(opts_frame, text="Ejecutar Preprocesamiento", command=self.run_preprocessing).pack(anchor="w", pady=8)
+
+        # Preview / resultado
+        right = tk.Frame(frame)
+        right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        tk.Label(right, text="Vista previa procesada (primeras 10 filas):", font=("Arial", 11, "bold")).pack(anchor="w", pady=6)
+        self.txt_prep_preview = tk.Text(right, height=30, width=90)
+        self.txt_prep_preview.pack(fill=tk.BOTH, expand=True)
+        self.txt_prep_preview.configure(state="disabled")
+
+        tk.Button(right, text="Guardar dataset preprocesado", command=self.save_preprocessed_file).pack(anchor="e", pady=8)
+
+        # Variables de estado
+        self.preprocessed_df = None
+        self.preproc_report = None
+
+    def on_preproc_dataset_selected(self, event=None):
+        sel = self.prep_dataset_combobox.get()
+        if not sel:
+            return
+        # Reusar tu load_dataset
+        try:
+            df = self.load_dataset(sel)
+        except Exception as e:
+            messagebox.showerror("Error al cargar", f"No se pudo leer el archivo:\n{e}")
+            return
+
+        # mostrar pequeña preview original
+        self.txt_prep_preview.configure(state="normal")
+        self.txt_prep_preview.delete("1.0", tk.END)
+        self.txt_prep_preview.insert(tk.END, "Preview original (30 primeras filas):\n")
+        self.txt_prep_preview.insert(tk.END, df.head(30).to_string(index=False))
+        self.txt_prep_preview.configure(state="disabled")
+
+        # guardar ruta actual para que run_preprocessing la use
+        self.preproc_current_path = sel
+        self.preproc_original_df = df
+
+    def run_preprocessing(self):
+        # Validaciones
+        if not hasattr(self, "preproc_original_df") or self.preproc_original_df is None:
+            messagebox.showwarning("Sin dataset", "Seleccione un dataset para preprocesar.")
+            return
+
+        try:
+            drop_thr = float(self.entry_drop_thr.get())
+        except Exception:
+            messagebox.showerror("Valor inválido", "El umbral de eliminación debe ser un número entre 0 y 1.")
+            return
+
+        fill_strategy = self.combo_fill.get()
+        fill_cat = self.combo_fill_cat.get()
+        scale_method = self.combo_scale.get()
+        scale_method = None if scale_method == "None" else scale_method
+        ycol = self.entry_ycol.get().strip() or None
+
+        # ejecutar pipeline
+        df_in = self.preproc_original_df.copy()
+        processed_df, report = self.preprocesador.process(
+            df=df_in,
+            original_path=getattr(self, "preproc_current_path", None),
+            y_column=ycol,
+            fill_strategy=fill_strategy,
+            fill_categorical=fill_cat,
+            drop_threshold=drop_thr,
+            drop_rows=False,
+            scale_method=scale_method
+        )
+
+        self.preprocessed_df = processed_df
+        self.preproc_report = report
+
+        # mostrar preview
+        self.txt_prep_preview.configure(state="normal")
+        self.txt_prep_preview.delete("1.0", tk.END)
+        self.txt_prep_preview.insert(tk.END, processed_df.head(30).to_string(index=False))
+        self.txt_prep_preview.insert(tk.END, "\n\nReporte (extracto):\n")
+        # mostrar resumen corto del reporte
+        lines = []
+        gd = report.get("global", {})
+        lines.append(f"Y column: {gd.get('y_column')}")
+        lines.append(f"Filas después: {gd.get('rows_after')}")
+        lines.append(f"Columnas después: {', '.join(gd.get('columns_after', []))}")
+        dropped_cols = gd.get("dropped_columns_high_missing", [])
+        if dropped_cols:
+            lines.append(f"Columnas eliminadas (missing alto): {', '.join(dropped_cols)}")
+        self.txt_prep_preview.insert(tk.END, "\n".join(lines))
+        self.txt_prep_preview.configure(state="disabled")
+
+        messagebox.showinfo("Preprocesamiento", "Preprocesamiento completado correctamente. Revise la vista previa y guarde el dataset si lo desea.")
+
+    def save_preprocessed_file(self):
+        if self.preprocessed_df is None:
+            messagebox.showwarning("Nada para guardar", "No hay dataset preprocesado. Ejecute el preprocesamiento primero.")
+            return
+
+        orig = getattr(self, "preproc_current_path", None)
+        # preguntar nombre / carpeta con filedialog
+        if orig:
+            orig_path = Path(orig)
+            default_name = orig_path.stem + "_preprocessed" + orig_path.suffix
+            initial_dir = str(orig_path.parent)
+            filetypes = [("CSV files", "*.csv"), ("Excel files", "*.xlsx;*.xls")]
+        else:
+            default_name = "preprocessed_dataset.csv"
+            initial_dir = "."
+            filetypes = [("CSV files", "*.csv"), ("Excel files", "*.xlsx;*.xls")]
+
+        save_path = filedialog.asksaveasfilename(
+            title="Guardar dataset preprocesado",
+            initialdir=initial_dir,
+            initialfile=default_name,
+            filetypes=filetypes,
+            defaultextension=Path(default_name).suffix
+        )
+        if not save_path:
+            return
+
+        # usar preprocesador.save_processed para guardar y el reporte
+        out_path, report_path = self.preprocesador.save_processed(
+            self.preprocessed_df,
+            original_path=getattr(self, "preproc_current_path", None),
+            target_path=save_path,
+            report=self.preproc_report
+        )
+
+        messagebox.showinfo("Guardado", f"Dataset guardado en:\n{out_path}\n\nReporte guardado en:\n{report_path}")
+
 
 
 # ==========================================
