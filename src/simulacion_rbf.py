@@ -398,6 +398,14 @@ class SimuladorRBF:
                 epsilon = None
         converge = (epsilon is not None) and (EG <= epsilon)
 
+        if epsilon is not None:
+            if converge:
+                messagebox.showinfo("Convergencia", f"La RED CONVERGE.\nEG = {EG:.6g} <= ε = {epsilon:.6g}", parent=self.win)
+            else:
+                messagebox.showwarning("Convergencia", f"La RED NO CONVERGE.\nEG = {EG:.6g} > ε = {epsilon:.6g}", parent=self.win)
+        else:
+            messagebox.showinfo("Convergencia", f"No se encontró ε en el JSON. EG = {EG:.6g}", parent=self.win)
+
         # 6) Guardar y mostrar resultados
         self.ultimo_resultado = {"YR": YR, "YD": YD, "EL": EL, "absEL": absEL, "EG": EG, "sigma": self.sigma, "converge": converge, "epsilon": epsilon}
         self._mostrar_resultados_text()
@@ -413,26 +421,40 @@ class SimuladorRBF:
 
         self.txt.configure(state="normal")
         self.txt.delete("1.0", tk.END)
-        # Si YR es matriz multi-salida, mostrar shape
+
+        # Encabezado claro de convergencia
+        if eps is not None:
+            status = "SI (CONVERGE)" if converge else "NO"
+            self.txt.insert(tk.END, f"=== CONVERGENCIA: {status} ===\n")
+            self.txt.insert(tk.END, f"EG = {EG:.6g}   |   ε = {eps:.6g}\n\n")
+        else:
+            self.txt.insert(tk.END, "=== CONVERGENCIA: No se puede comprobar (ε no encontrado) ===\n")
+            self.txt.insert(tk.END, f"EG = {EG:.6g}\n\n")
+
+        # Info general
         if isinstance(YR, np.ndarray) and YR.ndim == 2:
             self.txt.insert(tk.END, f"YR multi-salida shape: {YR.shape}\n")
         else:
             self.txt.insert(tk.END, f"Patrones: {len(YR)}\n")
-        self.txt.insert(tk.END, f"EG = {EG:.6g}\n")
+        self.txt.insert(tk.END, "\n")
+
+        # Mostrar resumen adicional
+        self.txt.insert(tk.END, f"EG (error lineal general) = Σ|EL|/N = {EG:.6g}\n")
         if eps is not None:
             self.txt.insert(tk.END, f"Epsilon (guardado) = {eps}\n")
-            self.txt.insert(tk.END, f"¿EG <= epsilon? => {'SI (CONVERGE)' if converge else 'NO'}\n")
-        else:
-            self.txt.insert(tk.END, "Epsilon no encontrado en el JSON\n")
-        self.txt.insert(tk.END, "\nPrimeros 50 patrones (YR | YD | EL):\n")
-        # Mostrar según formato YR
+        self.txt.insert(tk.END, "\n")
+
+        # Primeros patrones (YR | YD | EL)
+        self.txt.insert(tk.END, "Primeros 50 patrones (YR | YD | EL):\n")
         if isinstance(YR, np.ndarray) and YR.ndim == 2:
             for i in range(min(50, YR.shape[0])):
                 self.txt.insert(tk.END, f"{i+1}: {np.array2string(YR[i], precision=6, separator=', ')} | {YD[i]:.6g} | {EL[i]:.6g}\n")
         else:
             for i in range(min(50, len(YR))):
                 self.txt.insert(tk.END, f"{i+1}: {YR[i]:.6g} | {YD[i]:.6g} | {EL[i]:.6g}\n")
+
         self.txt.configure(state="disabled")
+
 
     def _graficar(self, YD, YR, EL, EG, eps):
         try:

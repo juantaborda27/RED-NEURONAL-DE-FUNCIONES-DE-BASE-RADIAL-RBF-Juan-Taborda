@@ -177,10 +177,14 @@ class RBFApp(tk.Tk):
         ).pack(anchor="w", pady=6)
 
         tk.Button(
-            error_frame, text="💾 Guardar Entrenamiento en JSON",
-            command=self.guardar_entrenamiento_json
+            error_frame, text="CALCULAR ERROR GENERAL",
+            command=self.calcular_interpolacion_y_pesos
         ).pack(anchor="w", pady=6)
 
+        tk.Button(
+            error_frame, text="Guardar Entrenamiento en JSON",
+            command=self.guardar_entrenamiento_json
+        ).pack(anchor="w", pady=6)
 
 
         # ================================
@@ -312,10 +316,20 @@ class RBFApp(tk.Tk):
             return
 
         n_inputs = self.summary["entradas"]
+        # X_train: (N_patrones, n_inputs)
         X_train = self.current_train.iloc[:, :n_inputs].to_numpy(dtype=float)
-        min_vals, max_vals = X_train.min(axis=0), X_train.max(axis=0)
 
-        centros = np.random.uniform(low=min_vals, high=max_vals, size=(self.n_centros, n_inputs))
+        # calcular mínimo y máximo global de TODO el conjunto de entradas
+        global_min = float(np.min(X_train))
+        global_max = float(np.max(X_train))
+
+        # si por alguna razón todos los valores son iguales, generamos centros idénticos
+        if global_min == global_max:
+            centros = np.full((self.n_centros, n_inputs), global_min, dtype=float)
+        else:
+            centros = np.random.uniform(low=global_min, high=global_max, size=(self.n_centros, n_inputs))
+
+        # Guardar e imprimir
         self.centros_radiales = centros
         self.entrenamiento_rbf.centros_radiales = centros
 
@@ -325,7 +339,8 @@ class RBFApp(tk.Tk):
         self.txt_centros.insert(tk.END, np.array2string(centros, precision=4, suppress_small=True))
         self.txt_centros.configure(state="disabled")
 
-        messagebox.showinfo("Centros inicializados", "Centros radiales generados correctamente.")
+        messagebox.showinfo("Centros inicializados", f"Centros radiales generados correctamente.\nRango global usado: [{global_min:.6g}, {global_max:.6g}]")
+
 
     def calcular_distancias_y_fa(self):
         if self.current_train is None or self.centros_radiales is None:
