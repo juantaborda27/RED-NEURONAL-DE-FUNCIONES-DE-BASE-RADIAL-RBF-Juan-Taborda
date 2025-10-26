@@ -10,6 +10,8 @@ from entrenamientoRBF import EntrenamientoRBF
 from interpolacionRBF import InterpolacionRBF
 from guardar_resultados import GuardarResultadosRBF
 from preprocesamiento import Preprocesador
+from simulacion_rbf import launch_simulation_window
+
 
 
 DATASETS_FOLDER = Path("datasets")
@@ -57,9 +59,10 @@ class RBFApp(tk.Tk):
 
         self.bt_simulacion = tk.Button(
             top_frame, text="SIMULACIÓN", width=18, height=2,
-            command=self.show_simulacion_view
+            command=lambda: launch_simulation_window(self)
         )
         self.bt_simulacion.pack(side=tk.LEFT, padx=10)
+
 
         # Contenedor dinámico
         self.content = tk.Frame(self)

@@ -1,0 +1,157 @@
+{
+  "columns": {
+    "Temperatura_Suelo_C": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Humedad_Suelo_%": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "PH_Suelo": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Luminosidad_Lux": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Humedad_Ambiente_%": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Necesidad_Riego": {
+      "original_dtype": "object",
+      "converted_to": "category_codes",
+      "notes": "3 categorías",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    }
+  },
+  "global": {
+    "y_column": "Necesidad_Riego",
+    "x_columns": [
+      "Temperatura_Suelo_C",
+      "Humedad_Suelo_%",
+      "PH_Suelo",
+      "Luminosidad_Lux",
+      "Humedad_Ambiente_%"
+    ],
+    "dropped_columns_high_missing": [],
+    "scaling": null,
+    "describe": {
+      "Temperatura_Suelo_C": {
+        "count": 60.0,
+        "mean": 27.346666666666668,
+        "std": 6.109577551116553,
+        "min": 18.4,
+        "25%": 21.7,
+        "50%": 26.950000000000003,
+        "75%": 32.300000000000004,
+        "max": 37.4
+      },
+      "Humedad_Suelo_%": {
+        "count": 60.0,
+        "mean": 48.936666666666675,
+        "std": 23.38409546901386,
+        "min": 10.4,
+        "25%": 29.5,
+        "50%": 50.1,
+        "75%": 71.10000000000001,
+        "max": 89.0
+      },
+      "PH_Suelo": {
+        "count": 60.0,
+        "mean": 6.655666666666667,
+        "std": 0.7210123924430822,
+        "min": 5.52,
+        "25%": 6.085,
+        "50%": 6.555,
+        "75%": 7.2,
+        "max": 7.96
+      },
+      "Luminosidad_Lux": {
+        "count": 60.0,
+        "mean": 5543.3,
+        "std": 2584.2436804604945,
+        "min": 1046.0,
+        "25%": 3191.25,
+        "50%": 6056.0,
+        "75%": 7510.0,
+        "max": 9757.0
+      },
+      "Humedad_Ambiente_%": {
+        "count": 60.0,
+        "mean": 66.06333333333333,
+        "std": 19.38947789671874,
+        "min": 31.0,
+        "25%": 51.65,
+        "50%": 67.35,
+        "75%": 82.9,
+        "max": 94.4
+      },
+      "Necesidad_Riego": {
+        "count": 60.0,
+        "mean": 1.2333333333333334,
+        "std": 0.6207340287621397,
+        "min": 0.0,
+        "25%": 1.0,
+        "50%": 1.0,
+        "75%": 2.0,
+        "max": 2.0
+      }
+    },
+    "missing_after": {
+      "Temperatura_Suelo_C": 0,
+      "Humedad_Suelo_%": 0,
+      "PH_Suelo": 0,
+      "Luminosidad_Lux": 0,
+      "Humedad_Ambiente_%": 0,
+      "Necesidad_Riego": 0
+    },
+    "original_path": "datasets\\dataset_iot_agricultura.csv",
+    "rows_after": 60,
+    "columns_after": [
+      "Temperatura_Suelo_C",
+      "Humedad_Suelo_%",
+      "PH_Suelo",
+      "Luminosidad_Lux",
+      "Humedad_Ambiente_%",
+      "Necesidad_Riego"
+    ]
+  },
+  "mappings": {
+    "Necesidad_Riego": {
+      "0": "Alta",
+      "1": "Baja",
+      "2": "Media"
+    }
+  }
+}
