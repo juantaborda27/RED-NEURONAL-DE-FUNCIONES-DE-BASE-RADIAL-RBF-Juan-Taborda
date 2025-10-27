@@ -178,7 +178,7 @@ class RBFApp(tk.Tk):
 
         tk.Button(
             error_frame, text="CALCULAR ERROR GENERAL",
-            command=self.calcular_interpolacion_y_pesos
+            command=self.calcular_errores_lineales_generales
         ).pack(anchor="w", pady=6)
 
         tk.Button(
@@ -586,6 +586,119 @@ class RBFApp(tk.Tk):
         )
 
         messagebox.showinfo("Guardado", f"Dataset guardado en:\n{out_path}\n\nReporte guardado en:\n{report_path}")
+
+    def calcular_errores_lineales_generales(self):
+        """
+        Calcula errores lineales (EL) y Error General (EG) usando:
+        - Matriz de interpolación (A) -- preferentemente self.interpolacion_rbf.matriz_A
+        - Pesos (W) -- preferentemente self.interpolacion_rbf.pesos
+        - Salidas deseadas (YD) del dataset de entrenamiento (self.current_train)
+        Muestra:
+        1) Messagebox con EL por patrón (limitado a los primeros 200 para evitar overflow)
+        2) Messagebox indicando si la red CONVERGE (EG <= epsilon) o NO CONVERGE
+        """
+        try:
+            # 1) Obtener matriz A
+            A = None
+            if hasattr(self.interpolacion_rbf, "matriz_A") and self.interpolacion_rbf.matriz_A is not None:
+                A = np.asarray(self.interpolacion_rbf.matriz_A, dtype=float)
+            elif hasattr(self.entrenamiento_rbf, "funcion_activacion") and self.entrenamiento_rbf.funcion_activacion is not None:
+                A = np.asarray(self.entrenamiento_rbf.funcion_activacion, dtype=float)
+            else:
+                messagebox.showwarning("Faltan datos", "No se encontró la matriz de interpolación ni la FA. Calculelas primero.")
+                return
+
+            # 2) Obtener pesos W
+            if hasattr(self.interpolacion_rbf, "pesos") and self.interpolacion_rbf.pesos is not None:
+                W_raw = self.interpolacion_rbf.pesos
+            else:
+                messagebox.showwarning("Faltan datos", "No se encontraron los pesos. Calculelos primero.")
+                return
+
+            # Normalizar W (acepta dict {W0:..}, list, np.array)
+            if isinstance(W_raw, dict):
+                # ordenar por clave para mantener W0, W1, ...
+                items = sorted(W_raw.items(), key=lambda kv: kv[0])
+                W_arr = np.array([float(v) for _, v in items], dtype=float)
+            else:
+                W_arr = np.asarray(W_raw, dtype=float).reshape(-1)
+
+            # 3) Calcular YR = A · W con manejo de bias / multi-salida
+            try:
+                if W_arr.ndim == 2 and W_arr.shape[1] == 1:
+                    W_arr = W_arr.ravel()
+
+                # Caso directo
+                if W_arr.size == A.shape[1]:
+                    YR = A.dot(W_arr)
+                # Caso bias en último elemento
+                elif W_arr.size == A.shape[1] + 1:
+                    bias = W_arr[-1]
+                    w_use = W_arr[:-1]
+                    YR = A.dot(w_use) + bias
+                # Caso multi-salida (concatenado)
+                elif W_arr.size % A.shape[1] == 0:
+                    K = W_arr.size // A.shape[1]
+                    W_mat = W_arr.reshape(A.shape[1], K)
+                    out = A.dot(W_mat)
+                    # si multi-salida y YD es vector, intentar reducir por argmax
+                    # pero aquí asumimos regresión; si multi-salida devolvemos la primera columna
+                    if out.ndim == 2 and out.shape[1] >= 1:
+                        YR = out[:, 0]
+                    else:
+                        YR = out.ravel()
+                else:
+                    raise ValueError(f"Dimensiones incompatibles: A cols={A.shape[1]} vs len(W)={W_arr.size}.")
+            except Exception as e:
+                messagebox.showerror("Error predicción", f"No se pudo calcular YR por incompatibilidad de dimensiones:\n{e}")
+                return
+
+            # 4) Obtener YD desde current_train
+            if self.current_train is None:
+                messagebox.showwarning("Sin datos", "No hay dataset de entrenamiento cargado.")
+                return
+            n_inputs = self.summary["entradas"]
+            Yd = self.current_train.iloc[:, n_inputs].to_numpy(dtype=float)
+
+            # Asegurar misma longitud
+            n = min(len(YR), len(Yd))
+            YR = np.asarray(YR).ravel()[:n]
+            Yd = np.asarray(Yd).ravel()[:n]
+
+            # 5) Calcular errores lineales y EG
+            EL = Yd - YR
+            absEL = np.abs(EL)
+            EG = float(np.sum(absEL) / n) if n > 0 else float("nan")
+
+            # 6) Preparar texto (limitado para no saturar el messagebox)
+            max_show = 200
+            lines = []
+            for i in range(min(n, max_show)):
+                lines.append(f"EL{i+1} = YD({i+1}) - YR({i+1}) = {Yd[i]:.6g} - {YR[i]:.6g} = {EL[i]:.6g}")
+            if n > max_show:
+                lines.append(f"... (se muestran {max_show} de {n} patrones)")
+
+            lines.append("")
+            lines.append(f"EG = Σ|EL| / N = {EG:.6g} (N={n})")
+
+            # 7) Mostrar primer messagebox con EL y EG
+            messagebox.showinfo("Errores lineales y Error General", "\n".join(lines))
+
+            # 8) Comparar con ε ingresado por el usuario
+            try:
+                epsilon = float(self.entry_error_optimo.get())
+            except Exception:
+                messagebox.showerror("ε inválido", "Ingrese un valor numérico válido para ε en el campo correspondiente.")
+                return
+
+            if EG <= epsilon:
+                messagebox.showinfo("Convergencia", f"✅ La red CONVERGE.\nEG = {EG:.6g} ≤ ε = {epsilon}")
+            else:
+                messagebox.showwarning("Convergencia", f"❌ La red NO converge.\nEG = {EG:.6g} > ε = {epsilon}\nSe sugiere aumentar el número de centros radiales.")
+
+        except Exception as ex:
+            messagebox.showerror("Error", f"Ocurrió un error al calcular errores:\n{ex}")
+
 
 
 
