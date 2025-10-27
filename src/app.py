@@ -280,12 +280,49 @@ class RBFApp(tk.Tk):
         self.txt_preview.insert(tk.END, df.head(5).to_string(index=False))
         self.txt_preview.configure(state="disabled")
 
-        messagebox.showinfo(
-            "Partición completada",
+        # Mensaje principal de partición
+        info_text = (
             f"Dataset '{Path(sel).name}' dividido automáticamente:\n"
             f"→ 70% (primeros valores) para entrenamiento ({len(df_train)})\n"
-            f"→ 30% (últimos valores) para simulación ({len(df_test)})"
+            f"→ 30% (últimos valores) para simulación ({len(df_test)})\n\n"
+            "¿Desea guardar el conjunto de prueba (30%) en un archivo?"
         )
+        save_test = messagebox.askyesno("Partición completada", info_text)
+
+        # Si el usuario quiere guardar, le preguntamos dónde y guardamos en el mismo tipo (CSV/Excel)
+        if save_test:
+            orig_suffix = Path(sel).suffix.lower()
+            default_name = Path(sel).stem + "_test" + orig_suffix
+            initial_dir = str(Path(sel).parent) if sel else "."
+
+            # definir filtros
+            filetypes = [("CSV files", "*.csv"), ("Excel files", "*.xlsx;*.xls")]
+            save_path = filedialog.asksaveasfilename(
+                title="Guardar conjunto de prueba (30%) como...",
+                initialdir=initial_dir,
+                initialfile=default_name,
+                defaultextension=orig_suffix,
+                filetypes=filetypes
+            )
+            if save_path:
+                try:
+                    if Path(save_path).suffix.lower() == ".csv":
+                        df_test.to_csv(save_path, index=False)
+                    else:
+                        # Excel (xlsx/xls) -> pandas detectará el formato
+                        df_test.to_excel(save_path, index=False)
+                    messagebox.showinfo("Guardado", f"Conjunto de prueba guardado en:\n{save_path}")
+                except Exception as e:
+                    messagebox.showerror("Error al guardar", f"No se pudo guardar el archivo:\n{e}")
+        else:
+            # Si no quiere guardar solo informamos que la partición se realizó
+            messagebox.showinfo(
+                "Partición completada",
+                f"Dataset '{Path(sel).name}' dividido automáticamente:\n"
+                f"→ 70% (primeros valores) para entrenamiento ({len(df_train)})\n"
+                f"→ 30% (últimos valores) para simulación ({len(df_test)})"
+            )
+
 
     def set_num_centros(self):
         if not self.summary:
