@@ -11,7 +11,7 @@ from entrenamientoRBF import EntrenamientoRBF
 from interpolacionRBF import InterpolacionRBF
 from guardar_resultados import GuardarResultadosRBF
 from preprocesamiento import Preprocesador
-from simulacion_rbf import launch_simulation_window
+from simulacion_rbf import launch_simulation_panel
 
 
 
@@ -60,7 +60,7 @@ class RBFApp(tk.Tk):
 
         self.bt_simulacion = tk.Button(
             top_frame, text="SIMULACIÓN", width=18, height=2,
-            command=lambda: launch_simulation_window(self)
+            command=self.show_simulacion_view
         )
         self.bt_simulacion.pack(side=tk.LEFT, padx=10)
 
@@ -220,12 +220,7 @@ class RBFApp(tk.Tk):
     # Vista: SIMULACIÓN
     # ==========================================
     def show_simulacion_view(self):
-        self.clear_content()
-        tk.Label(
-            self.content,
-            text="Vista de simulación RBF (en desarrollo)",
-            font=("Arial", 14, "bold")
-        ).pack(pady=50)
+        launch_simulation_panel(self.content, self)
 
     # ==========================================
     # Acciones
