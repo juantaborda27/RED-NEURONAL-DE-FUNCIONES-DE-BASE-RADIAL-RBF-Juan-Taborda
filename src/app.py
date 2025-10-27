@@ -4,6 +4,7 @@ from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Importamos la lógica de entrenamiento RBF
 from entrenamientoRBF import EntrenamientoRBF
@@ -69,7 +70,7 @@ class RBFApp(tk.Tk):
         self.content.pack(fill=tk.BOTH, expand=True)
 
         # Mostrar por defecto vista de entrenamiento
-        self.show_entrenamiento_view()
+        self.show_preprocesamiento_view()
 
     # ==========================================
     # Utilidades
@@ -179,6 +180,11 @@ class RBFApp(tk.Tk):
         tk.Button(
             error_frame, text="CALCULAR ERROR GENERAL",
             command=self.calcular_errores_lineales_generales
+        ).pack(anchor="w", pady=6)
+
+        tk.Button(
+            error_frame, text="VISUALIZAR ENTRENAMIENTO",
+            command=self.visualizar_entrenamiento
         ).pack(anchor="w", pady=6)
 
         tk.Button(
@@ -732,9 +738,239 @@ class RBFApp(tk.Tk):
 
         except Exception as ex:
             messagebox.showerror("Error", f"Ocurrió un error al calcular errores:\n{ex}")
+    
+    def visualizar_entrenamiento(self):
+        
 
+        try:
+            # --- 1) Obtener A (preferentemente matriz_A) y pesos W ---
+            A = None
+            if hasattr(self.interpolacion_rbf, "matriz_A") and self.interpolacion_rbf.matriz_A is not None:
+                A = np.asarray(self.interpolacion_rbf.matriz_A, dtype=float)
+            elif hasattr(self.entrenamiento_rbf, "funcion_activacion") and self.entrenamiento_rbf.funcion_activacion is not None:
+                A = np.asarray(self.entrenamiento_rbf.funcion_activacion, dtype=float)
+            else:
+                messagebox.showwarning("Faltan datos", "No se encontró la matriz A ni la FA. Calculelas primero.")
+                return
 
+            if not (hasattr(self.interpolacion_rbf, "pesos") and self.interpolacion_rbf.pesos is not None):
+                messagebox.showwarning("Faltan datos", "No se encontraron los pesos. Calculelos primero.")
+                return
+            W_raw = self.interpolacion_rbf.pesos
 
+            # Normalizar pesos a vector numpy
+            if isinstance(W_raw, dict):
+                items = sorted(W_raw.items(), key=lambda kv: kv[0])
+                W_arr = np.array([float(v) for _, v in items], dtype=float)
+            else:
+                W_arr = np.asarray(W_raw, dtype=float).reshape(-1)
+
+            # --- 2) Calcular YR para entrenamiento (A · W) con manejo de bias/multi-salida ---
+            try:
+                W_use = W_arr.copy()
+                if W_use.ndim == 2 and W_use.shape[1] == 1:
+                    W_use = W_use.ravel()
+
+                if W_use.size == A.shape[1]:
+                    YR_train = A.dot(W_use)
+                elif W_use.size == A.shape[1] + 1:
+                    bias = W_use[-1]
+                    w_use = W_use[:-1]
+                    YR_train = A.dot(w_use) + bias
+                elif W_use.size % A.shape[1] == 0:
+                    K = W_use.size // A.shape[1]
+                    W_mat = W_use.reshape(A.shape[1], K)
+                    out = A.dot(W_mat)
+                    YR_train = out[:, 0] if out.ndim == 2 and out.shape[1] >= 1 else out.ravel()
+                else:
+                    raise ValueError(f"Dimensiones incompatibles: A cols={A.shape[1]} vs len(W)={W_use.size}.")
+            except Exception as e:
+                messagebox.showerror("Error predicción", f"No se pudo calcular YR (entrenamiento):\n{e}")
+                return
+
+            # --- 3) Obtener Yd entrenamiento ---
+            if self.current_train is None:
+                messagebox.showwarning("Sin datos", "No hay dataset de entrenamiento cargado.")
+                return
+            n_inputs = self.summary["entradas"]
+            Yd_train = self.current_train.iloc[:, n_inputs].to_numpy(dtype=float)
+
+            # Cortar a la misma longitud
+            n_train = min(len(YR_train), len(Yd_train))
+            if n_train == 0:
+                messagebox.showwarning("Sin patrones", "No hay patrones válidos para calcular/visualizar.")
+                return
+            YR_train = np.asarray(YR_train).ravel()[:n_train]
+            Yd_train = np.asarray(Yd_train).ravel()[:n_train]
+
+            # --- 4) Preparar conjunto de prueba (si existe) calculando FA_test con sigma inferido ---
+            Yd_test = None
+            YR_test = None
+            EG_test = None
+            if self.current_test is not None and getattr(self, "centros_radiales", None) is not None:
+                try:
+                    X_test = self.current_test.iloc[:, :n_inputs].to_numpy(dtype=float)
+                    # inferir sigma robusto (desde distancias/FA si existen, o heurística NN, o fallback 1.0)
+                    def inferir_sigma_robusto(centros, distancias=None, fa=None):
+                        try:
+                            if distancias is not None and fa is not None:
+                                D = np.asarray(distancias, dtype=float)
+                                F = np.asarray(fa, dtype=float)
+                                mask = (F > 0) & (F < 1) & (D > 0)
+                                if np.any(mask):
+                                    vals = - (D[mask]**2) / (2.0 * np.log(F[mask]))
+                                    vals = vals[np.isfinite(vals) & (vals > 0)]
+                                    if vals.size > 0:
+                                        sigma_est = float(np.median(np.sqrt(vals)))
+                                        if sigma_est > 0 and np.isfinite(sigma_est):
+                                            return sigma_est
+                        except Exception:
+                            pass
+                        # heuristic nearest neighbor on centers
+                        try:
+                            C = np.asarray(centros, dtype=float)
+                            if C.ndim == 2 and C.shape[0] > 1:
+                                D2 = np.sum((C[:, None, :] - C[None, :, :])**2, axis=2)
+                                np.fill_diagonal(D2, np.inf)
+                                D = np.sqrt(D2)
+                                nn = np.min(D, axis=1)
+                                nn = nn[np.isfinite(nn)]
+                                if nn.size > 0:
+                                    d_med = float(np.median(nn))
+                                    if d_med > 0:
+                                        return float(d_med / np.sqrt(2.0 * np.log(2.0)))
+                        except Exception:
+                            pass
+                        return 1.0
+
+                    sigma = inferir_sigma_robusto(self.centros_radiales,
+                                                getattr(self.entrenamiento_rbf, "distancias", None),
+                                                getattr(self.entrenamiento_rbf, "funcion_activacion", None))
+                    # calcular FA_test gaussianas
+                    dif = X_test[:, np.newaxis, :] - self.centros_radiales[np.newaxis, :, :]
+                    D2 = np.sum(dif**2, axis=2)
+                    denom = 2.0 * (float(sigma) ** 2)
+                    FA_test = np.exp(-D2 / denom)
+                    # multiplicar por pesos (misma lógica que arriba)
+                    W_vec = W_use.reshape(-1)
+                    if FA_test.shape[1] != W_vec.size:
+                        # intentar comprender distintas formas: si hay bias en W (len = Acols+1) lo manejamos:
+                        if W_vec.size == A.shape[1] + 1:
+                            bias = W_vec[-1]
+                            YR_test = FA_test.dot(W_vec[:-1]) + bias
+                        else:
+                            # si no coincide, intentar trimmear o lanzar error (fall back: intentar dot if shapes match)
+                            if FA_test.shape[1] == W_vec.size:
+                                YR_test = FA_test.dot(W_vec)
+                            else:
+                                # No se puede predecir para test
+                                YR_test = None
+                    else:
+                        YR_test = FA_test.dot(W_vec)
+
+                    if YR_test is not None:
+                        Yd_test = self.current_test.iloc[:, n_inputs].to_numpy(dtype=float)
+                        n_test = min(len(YR_test), len(Yd_test))
+                        YR_test = np.asarray(YR_test).ravel()[:n_test]
+                        Yd_test = np.asarray(Yd_test).ravel()[:n_test]
+                        EG_test = float(np.mean(np.abs(Yd_test - YR_test))) if n_test > 0 else None
+                except Exception:
+                    # no obligamos al usuario a tener test válido
+                    YR_test = None
+                    Yd_test = None
+                    EG_test = None
+
+            # --- 5) Calcular métricas para entrenamiento ---
+            EL_train = Yd_train - YR_train
+            absEL_train = np.abs(EL_train)
+            EG_train = float(np.mean(absEL_train))
+            MAE_train = EG_train  # idéntico al promedio absoluto
+            RMSE_train = float(np.sqrt(np.mean((Yd_train - YR_train) ** 2)))
+
+            # --- 6) Obtener epsilon (preferir entrada del usuario) ---
+            epsilon = None
+            try:
+                epsilon = float(self.entry_error_optimo.get())
+            except Exception:
+                try:
+                    epsilon = float(getattr(self.entrenamiento_rbf, "error_optimo", None))
+                except Exception:
+                    epsilon = None
+
+            converge_train = (epsilon is not None) and (EG_train <= epsilon)
+
+            # Si no converge preguntar si desea ver gráficas de todas formas
+            if not converge_train:
+                see_anyway = messagebox.askyesno(
+                    "La red no converge (entrenamiento)",
+                    f"EG (entrenamiento) = {EG_train:.6g}\n"
+                    f"ε = {epsilon if epsilon is not None else 'no definido'}\n\n"
+                    "La red NO converge. ¿Desea igualmente ver las gráficas?"
+                )
+                if not see_anyway:
+                    return
+
+            # --- 7) Preparar figura con 3 subplots ---
+            try:
+                fig, axs = plt.subplots(3, 1, figsize=(10, 14))
+
+                # Plot 1: Yd vs Yr (líneas) - entrenamiento (y prueba si existe)
+                ax = axs[0]
+                x_train = np.arange(1, n_train + 1)
+                ax.plot(x_train, Yd_train, label="YD (entrenamiento)", linestyle='-', marker='o')
+                ax.plot(x_train, YR_train, label="YR (entrenamiento)", linestyle='--', marker='x')
+                if YR_test is not None and Yd_test is not None:
+                    x_test = np.arange(n_train + 1, n_train + 1 + len(YR_test))
+                    ax.plot(x_test, Yd_test, label="YD (prueba)", linestyle='-', marker='o', alpha=0.7)
+                    ax.plot(x_test, YR_test, label="YR (prueba)", linestyle='--', marker='x', alpha=0.7)
+                ax.set_xlabel("Patrón")
+                ax.set_ylabel("Salida")
+                ax.set_title("YD vs YR (por patrón)")
+                ax.legend()
+                ax.grid(True)
+
+                # Plot 2: EG (Entrenamiento / Prueba) vs epsilon
+                ax = axs[1]
+                labels = ["Entrenamiento"]
+                values = [EG_train]
+                if EG_test is not None:
+                    labels.append("Prueba")
+                    values.append(EG_test)
+                bars = ax.bar(labels, values)
+                ax.set_ylim(0, max(values + ([epsilon] if epsilon is not None else [0])) * 1.2 if values else 1.0)
+                ax.set_ylabel("EG (MAE)")
+                ax.set_title("EG por conjunto (Entrenamiento / Prueba)")
+                # dibujar linea de epsilon si existe
+                if epsilon is not None:
+                    ax.axhline(epsilon, color='r', linestyle=':', linewidth=1.2, label=f"ε = {epsilon}")
+                    ax.legend()
+                # anotar valores sobre barras
+                for rect, v in zip(bars, values):
+                    ax.text(rect.get_x() + rect.get_width()/2, v, f"{v:.4g}", ha='center', va='bottom')
+
+                ax.grid(True, axis='y', linestyle='--', alpha=0.4)
+
+                # Plot 3: Scatter Yd vs Yr (entrenamiento) con diagonal ideal
+                ax = axs[2]
+                ax.scatter(Yd_train, YR_train, label='Entrenamiento', s=30)
+                mn = min(np.min(Yd_train), np.min(YR_train))
+                mx = max(np.max(Yd_train), np.max(YR_train))
+                ax.plot([mn, mx], [mn, mx], linestyle='--', linewidth=1, label='Diagonal ideal')
+                if YR_test is not None and Yd_test is not None:
+                    ax.scatter(Yd_test, YR_test, label='Prueba', marker='x', s=30, alpha=0.7)
+                ax.set_xlabel("YD (deseada)")
+                ax.set_ylabel("YR (red)")
+                ax.set_title("Dispersión YD vs YR")
+                ax.legend()
+                ax.grid(True)
+
+                plt.tight_layout()
+                plt.show()
+            except Exception as e:
+                messagebox.showwarning("Gráficas", f"No se pudieron generar las gráficas:\n{e}")
+
+        except Exception as ex:
+            messagebox.showerror("Error visualización", f"Ocurrió un error al preparar la visualización:\n{ex}")
 
 # ==========================================
 # Punto de entrada
