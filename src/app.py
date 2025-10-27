@@ -588,17 +588,8 @@ class RBFApp(tk.Tk):
         messagebox.showinfo("Guardado", f"Dataset guardado en:\n{out_path}\n\nReporte guardado en:\n{report_path}")
 
     def calcular_errores_lineales_generales(self):
-        """
-        Calcula errores lineales (EL) y Error General (EG) usando:
-        - Matriz de interpolación (A) -- preferentemente self.interpolacion_rbf.matriz_A
-        - Pesos (W) -- preferentemente self.interpolacion_rbf.pesos
-        - Salidas deseadas (YD) del dataset de entrenamiento (self.current_train)
-        Muestra:
-        1) Messagebox con EL por patrón (limitado a los primeros 200 para evitar overflow)
-        2) Messagebox indicando si la red CONVERGE (EG <= epsilon) o NO CONVERGE
-        """
         try:
-            # 1) Obtener matriz A
+            # 1) Obtener matriz A (preferentemente matriz_A; fallback a funcion_activacion)
             A = None
             if hasattr(self.interpolacion_rbf, "matriz_A") and self.interpolacion_rbf.matriz_A is not None:
                 A = np.asarray(self.interpolacion_rbf.matriz_A, dtype=float)
@@ -617,7 +608,6 @@ class RBFApp(tk.Tk):
 
             # Normalizar W (acepta dict {W0:..}, list, np.array)
             if isinstance(W_raw, dict):
-                # ordenar por clave para mantener W0, W1, ...
                 items = sorted(W_raw.items(), key=lambda kv: kv[0])
                 W_arr = np.array([float(v) for _, v in items], dtype=float)
             else:
@@ -641,8 +631,7 @@ class RBFApp(tk.Tk):
                     K = W_arr.size // A.shape[1]
                     W_mat = W_arr.reshape(A.shape[1], K)
                     out = A.dot(W_mat)
-                    # si multi-salida y YD es vector, intentar reducir por argmax
-                    # pero aquí asumimos regresión; si multi-salida devolvemos la primera columna
+                    # si multi-salida devolvemos la primera columna (asumimos regresión)
                     if out.ndim == 2 and out.shape[1] >= 1:
                         YR = out[:, 0]
                     else:
@@ -662,13 +651,18 @@ class RBFApp(tk.Tk):
 
             # Asegurar misma longitud
             n = min(len(YR), len(Yd))
+            if n == 0:
+                messagebox.showwarning("Sin patrones", "No hay patrones válidos para calcular errores.")
+                return
             YR = np.asarray(YR).ravel()[:n]
             Yd = np.asarray(Yd).ravel()[:n]
 
-            # 5) Calcular errores lineales y EG
+            # 5) Calcular errores lineales y métricas
             EL = Yd - YR
             absEL = np.abs(EL)
-            EG = float(np.sum(absEL) / n) if n > 0 else float("nan")
+            EG = float(np.sum(absEL) / n)  # EG definido como promedio absoluto
+            MAE = float(np.mean(absEL))
+            RMSE = float(np.sqrt(np.mean((Yd - YR) ** 2)))
 
             # 6) Preparar texto (limitado para no saturar el messagebox)
             max_show = 200
@@ -678,11 +672,14 @@ class RBFApp(tk.Tk):
             if n > max_show:
                 lines.append(f"... (se muestran {max_show} de {n} patrones)")
 
-            lines.append("")
+            lines.append("")  # separación
+            # Mostrar EG y debajo sólo los resultados de MAE y RMSE (sin proceso)
             lines.append(f"EG = Σ|EL| / N = {EG:.6g} (N={n})")
+            lines.append(f"MAE = {MAE:.6g}")
+            lines.append(f"RMSE = {RMSE:.6g}")
 
-            # 7) Mostrar primer messagebox con EL y EG
-            messagebox.showinfo("Errores lineales y Error General", "\n".join(lines))
+            # 7) Mostrar primer messagebox con EL y las métricas
+            messagebox.showinfo("Errores lineales y métricas", "\n".join(lines))
 
             # 8) Comparar con ε ingresado por el usuario
             try:
