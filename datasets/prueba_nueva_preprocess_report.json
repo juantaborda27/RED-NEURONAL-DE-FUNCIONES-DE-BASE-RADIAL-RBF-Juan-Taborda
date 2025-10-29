@@ -1,0 +1,134 @@
+{
+  "columns": {
+    "Peso_kg": {
+      "original_dtype": "int64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Edad_meses": {
+      "original_dtype": "int64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Raza": {
+      "original_dtype": "object",
+      "converted_to": "category_codes",
+      "notes": "2 categorías",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Consumo_Concentrado_kg": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Produccion_Leche_LitrosDia": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    }
+  },
+  "global": {
+    "y_column": "Produccion_Leche_LitrosDia",
+    "x_columns": [
+      "Peso_kg",
+      "Edad_meses",
+      "Raza",
+      "Consumo_Concentrado_kg"
+    ],
+    "dropped_columns_high_missing": [],
+    "scaling": null,
+    "describe": {
+      "Peso_kg": {
+        "count": 60.0,
+        "mean": 452.0,
+        "std": 57.24760375415918,
+        "min": 350.0,
+        "25%": 403.75,
+        "50%": 455.0,
+        "75%": 500.0,
+        "max": 550.0
+      },
+      "Edad_meses": {
+        "count": 60.0,
+        "mean": 28.416666666666668,
+        "std": 4.239809984016379,
+        "min": 20.0,
+        "25%": 25.0,
+        "50%": 28.5,
+        "75%": 32.0,
+        "max": 36.0
+      },
+      "Raza": {
+        "count": 60.0,
+        "mean": 0.5,
+        "std": 0.5042194840896107,
+        "min": 0.0,
+        "25%": 0.0,
+        "50%": 0.5,
+        "75%": 1.0,
+        "max": 1.0
+      },
+      "Consumo_Concentrado_kg": {
+        "count": 60.0,
+        "mean": 3.203333333333333,
+        "std": 0.8008399545279702,
+        "min": 1.8,
+        "25%": 2.5,
+        "50%": 3.2,
+        "75%": 3.9,
+        "max": 4.6
+      },
+      "Produccion_Leche_LitrosDia": {
+        "count": 60.0,
+        "mean": 11.916666666666666,
+        "std": 1.8833153841452557,
+        "min": 8.62,
+        "25%": 10.3325,
+        "50%": 11.925,
+        "75%": 13.52,
+        "max": 15.2
+      }
+    },
+    "missing_after": {
+      "Peso_kg": 0,
+      "Edad_meses": 0,
+      "Raza": 0,
+      "Consumo_Concentrado_kg": 0,
+      "Produccion_Leche_LitrosDia": 0
+    },
+    "original_path": "datasets\\dataset_ganadero.csv",
+    "rows_after": 60,
+    "columns_after": [
+      "Peso_kg",
+      "Edad_meses",
+      "Raza",
+      "Consumo_Concentrado_kg",
+      "Produccion_Leche_LitrosDia"
+    ]
+  },
+  "mappings": {
+    "Raza": {
+      "0": "Girolando",
+      "1": "Gyr"
+    }
+  }
+}
