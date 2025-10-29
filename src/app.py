@@ -432,21 +432,26 @@ class RBFApp(tk.Tk):
             messagebox.showwarning("Sin datos", "Debe cargar un dataset antes de guardar.")
             return
 
+        # Aseguramos incluir columnas reales en el resumen (si están disponibles)
         resumen = {
             "entradas": self.summary.get("entradas"),
             "salidas": self.summary.get("salidas"),
             "patrones": self.summary.get("patrones"),
-            "error_optimo": self.entrenamiento_rbf.error_optimo,
-            "num_centros": self.n_centros
+            "error_optimo": getattr(self.entrenamiento_rbf, "error_optimo", None),
+            "num_centros": self.n_centros,
+            # agregamos las columnas originales (útil para la simulación)
+            "columns": self.summary.get("columns")
         }
 
         centros = self.centros_radiales
-        distancias = self.entrenamiento_rbf.distancias
-        fa = self.entrenamiento_rbf.funcion_activacion
-        matriz_interp = self.interpolacion_rbf.matriz_A if hasattr(self.interpolacion_rbf, "matriz_A") else None
-        pesos = self.interpolacion_rbf.pesos if hasattr(self.interpolacion_rbf, "pesos") else None
+        distancias = getattr(self.entrenamiento_rbf, "distancias", None)
+        fa = getattr(self.entrenamiento_rbf, "funcion_activacion", None)
+        matriz_interp = getattr(self.interpolacion_rbf, "matriz_A", None)
+        pesos = getattr(self.interpolacion_rbf, "pesos", None)
 
+        # Llamamos al guardador que pedirá nombre y guardará input_names en el JSON
         self.guardar_resultados.guardar(resumen, centros, distancias, fa, matriz_interp, pesos)
+
 
     # ==========================================
     # Vista: PREPROCESAMIENTO

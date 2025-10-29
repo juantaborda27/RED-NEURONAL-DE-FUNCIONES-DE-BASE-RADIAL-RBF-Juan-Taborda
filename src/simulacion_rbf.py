@@ -164,30 +164,40 @@ class SimulacionPanel:
         self.pesos = _pesos_from_json(j.get("pesos")) if j.get("pesos") is not None else None
         self.resumen = j.get("resumen", {}) if isinstance(j.get("resumen", {}), dict) else {}
 
-        # inferir n_inputs
-        n_inputs = None
-        if "entradas" in self.resumen:
-            try:
-                n_inputs = int(self.resumen["entradas"])
-            except Exception:
-                n_inputs = None
-        if n_inputs is None and self.centros is not None:
-            # centros shape = (n_centros, n_inputs)
-            try:
-                if self.centros.ndim == 2:
-                    n_inputs = int(self.centros.shape[1])
-            except Exception:
-                n_inputs = None
-        if n_inputs is None:
-            # fallback: si matriz_A existe, usar columnas como n_centros; no da entradas — pedir 1 por defecto
-            n_inputs = 1
+        # -------------- INPUT NAMES (PRIMARIO) -----------------
+        input_names = None
+        # 1) si el JSON tiene explicitamente input_names (lo guardamos así)
+        if isinstance(j.get("input_names"), (list, tuple)):
+            input_names = [str(x) for x in j.get("input_names")]
+        # 2) si no, si tenemos columns en resumen -> usamos todas menos la última
+        elif isinstance(self.resumen.get("columns"), (list, tuple)):
+            cols = list(self.resumen.get("columns"))
+            if len(cols) >= 1:
+                input_names = [str(c) for c in cols[:-1]] if len(cols) > 1 else [str(cols[0])]
+        # 3) fallback: inferir desde centros (si existen)
+        if input_names is None:
+            n_inputs = None
+            if "entradas" in self.resumen:
+                try:
+                    n_inputs = int(self.resumen["entradas"])
+                except Exception:
+                    n_inputs = None
+            if n_inputs is None and self.centros is not None:
+                try:
+                    if self.centros.ndim == 2:
+                        n_inputs = int(self.centros.shape[1])
+                except Exception:
+                    n_inputs = None
+            if n_inputs is None:
+                n_inputs = 1
+            input_names = [f"x{i+1}" for i in range(n_inputs)]
 
-        self.n_inputs = n_inputs
-        # generar nombres x1..xn
-        self.input_names = [f"x{i+1}" for i in range(self.n_inputs)]
+        # guardar y crear entradas visuales
+        self.input_names = input_names
+        self.n_inputs = len(self.input_names)
         self._crear_inputs_entries(self.input_names)
 
-        # mostrar resumen compacto
+        # mostrar resumen compacto (añadimos input_names al texto)
         lines = ["JSON cargado correctamente.\n"]
         if isinstance(self.resumen, dict) and self.resumen:
             lines.append("Resumen:")
@@ -195,6 +205,7 @@ class SimulacionPanel:
                 if k in self.resumen:
                     lines.append(f"  {k}: {self.resumen[k]}")
             lines.append("")
+        lines.append(f"Nombres de entradas detectados: {self.input_names}")
         if self.centros is not None:
             lines.append(f"Centros radiales: shape={self.centros.shape}")
         if self.matriz_A is not None:
@@ -212,6 +223,7 @@ class SimulacionPanel:
 
         self._set_text(self.txt_resumen, "\n".join(lines))
         messagebox.showinfo("JSON cargado", "Modelo cargado. Complete las entradas y agregue patrones manuales para simular.", parent=self.parent)
+
 
     def _crear_inputs_entries(self, names):
         # limpiar contenedor anterior
