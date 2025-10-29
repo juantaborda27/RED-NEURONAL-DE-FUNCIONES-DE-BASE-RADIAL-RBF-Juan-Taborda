@@ -6,16 +6,6 @@ import json
 from typing import Optional, Tuple, Dict, Any
 
 class Preprocesador:
-    """
-    Clase para preprocesar datasets:
-    - rellenado/eliminación de faltantes
-    - conversión de columnas no numéricas a códigos
-    - escalado (estandarización MinMax/Standard)
-    - identificación X (entradas) y Y (salida)
-    - generación de reporte/estadísticas
-    - guardado con mismo formato original
-    """
-
     def __init__(self):
         # diccionarios que guardarán parámetros para el reporte
         self.report: Dict[str, Any] = {
@@ -210,16 +200,6 @@ class Preprocesador:
         drop_rows: bool = False,
         scale_method: Optional[str] = None
     ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-        """
-        Pipeline principal:
-        - identifica X/Y
-        - convierte columnas no numéricas
-        - elimina columnas con missing alto
-        - rellena faltantes
-        - escala X
-        - genera estadísticas básicas en self.report
-        Retorna df_procesado y reporte (dict)
-        """
         # reset reporte
         self.report = {"columns": {}, "global": {}, "mappings": {}}
 
@@ -259,11 +239,6 @@ class Preprocesador:
         report: Optional[Dict[str, Any]] = None,
         overwrite: bool = False
     ) -> Tuple[str, str]:
-        """
-        Guarda el dataframe procesado y el reporte JSON.
-        Si target_path no se indica, genera <original>_preprocessed.<ext> en la misma carpeta.
-        Retorna (ruta_archivo_procesado, ruta_reporte_json)
-        """
         if original_path:
             orig = Path(original_path)
             ext = orig.suffix.lower()

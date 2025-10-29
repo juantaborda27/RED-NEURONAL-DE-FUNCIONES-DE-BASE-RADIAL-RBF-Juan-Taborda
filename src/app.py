@@ -503,6 +503,8 @@ class RBFApp(tk.Tk):
 
         tk.Button(opts_frame, text="Ejecutar Preprocesamiento", command=self.run_preprocessing).pack(anchor="w", pady=8)
 
+        tk.Button(opts_frame, text="Guardar dataset preprocesado", command=self.save_preprocessed_file).pack(anchor="e", pady=8)
+
         # Preview / resultado
         right = tk.Frame(frame)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -512,7 +514,7 @@ class RBFApp(tk.Tk):
         self.txt_prep_preview.pack(fill=tk.BOTH, expand=True)
         self.txt_prep_preview.configure(state="disabled")
 
-        tk.Button(right, text="Guardar dataset preprocesado", command=self.save_preprocessed_file).pack(anchor="e", pady=8)
+        # tk.Button(right, text="Guardar dataset preprocesado", command=self.save_preprocessed_file).pack(anchor="e", pady=8)
 
         # Variables de estado
         self.preprocessed_df = None
