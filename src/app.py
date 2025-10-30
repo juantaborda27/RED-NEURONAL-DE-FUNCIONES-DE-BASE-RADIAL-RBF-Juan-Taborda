@@ -577,6 +577,7 @@ class RBFApp(tk.Tk):
         self.preproc_report = report
 
         # mostrar preview
+        # mostrar preview
         self.txt_prep_preview.configure(state="normal")
         self.txt_prep_preview.delete("1.0", tk.END)
         self.txt_prep_preview.insert(tk.END, processed_df.head(30).to_string(index=False))
@@ -591,9 +592,51 @@ class RBFApp(tk.Tk):
         if dropped_cols:
             lines.append(f"Columnas eliminadas (missing alto): {', '.join(dropped_cols)}")
         self.txt_prep_preview.insert(tk.END, "\n".join(lines))
+
+        # ---------------------------------------------------------
+        # NUEVO: construir y mostrar mapeos de codificación categórica
+        # ---------------------------------------------------------
+        try:
+            import pandas as pd
+            mappings = {}  # col -> {original_value: encoded_value}
+            # recorremos columnas del df original que sean categóricas (object/category)
+            if hasattr(self, "preproc_original_df") and self.preproc_original_df is not None:
+                orig_df = self.preproc_original_df
+                proc_df = processed_df
+
+                for col in orig_df.columns:
+                    # solo si columna existente también en proc_df
+                    if col in proc_df.columns:
+                        # considerar como categórica la de tipo object o category en original
+                        if pd.api.types.is_object_dtype(orig_df[col]) or pd.api.types.is_categorical_dtype(orig_df[col]):
+                            mapping = {}
+                            # para cada valor único en original, buscar el valor(es) resultantes en proc_df
+                            for val in orig_df[col].dropna().unique():
+                                mask = orig_df[col] == val
+                                encoded_vals = proc_df.loc[mask, col].dropna().unique()
+                                # si hay exactamente 1 valor codificado, lo guardamos como mapping directo
+                                if len(encoded_vals) == 1:
+                                    mapping[str(val)] = encoded_vals[0]
+                                else:
+                                    # si hay varios (o ninguno), guardamos lista para mostrar al usuario
+                                    mapping[str(val)] = list(encoded_vals)
+                            if mapping:
+                                mappings[col] = mapping
+        except Exception:
+            mappings = {}
+
+        # imprimir mapeos (si hay) en el preview
+        if mappings:
+            self.txt_prep_preview.insert(tk.END, "\n\nMapeos de codificación (columna: valor_original -> valor_codificado):\n")
+            for col, mp in mappings.items():
+                self.txt_prep_preview.insert(tk.END, f"\n{col}:\n")
+                for orig_val, enc in mp.items():
+                    self.txt_prep_preview.insert(tk.END, f"  {orig_val}  ->  {enc}\n")
+        else:
+            self.txt_prep_preview.insert(tk.END, "\n\n(No se detectaron mapeos categóricos o no hay columnas categóricas en el dataset original.)\n")
+
         self.txt_prep_preview.configure(state="disabled")
 
-        messagebox.showinfo("Preprocesamiento", "Preprocesamiento completado correctamente. Revise la vista previa y guarde el dataset si lo desea.")
 
     def save_preprocessed_file(self):
         if self.preprocessed_df is None:
