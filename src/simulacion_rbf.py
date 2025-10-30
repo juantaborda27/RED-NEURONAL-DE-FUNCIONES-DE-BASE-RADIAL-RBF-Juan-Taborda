@@ -62,6 +62,9 @@ class SimulacionPanel(tk.Frame):
         left_bottom.pack(fill=tk.X, padx=6, pady=(0, 6))
         self.btn_calc = ttk.Button(left_bottom, text='CALCULAR SALIDA', command=self.calcular_salida)
         self.btn_calc.pack(side=tk.LEFT, padx=(0, 6))
+        # dentro de __init__, en left_bottom, después de self.btn_calc.pack(...)
+        ttk.Button(left_bottom, text='Cargar dataset prueba', command=self.load_testset).pack(side=tk.LEFT, padx=(6,0))
+
         ttk.Button(left_bottom, text='Limpiar', command=self._limpiar_inputs).pack(side=tk.LEFT)
 
         # Panel derecho: resumen y resultado
@@ -259,3 +262,93 @@ class SimulacionPanel(tk.Frame):
 
         except Exception as e:
             messagebox.showerror('Error en simulación', str(e))
+
+    def load_testset(self):
+        """Carga un CSV con patrones de prueba y ejecuta la simulación sobre cada fila."""
+        if self.W is None or self.centros is None:
+            messagebox.showwarning('Aviso', 'Primero cargue un JSON con pesos/centros.')
+            return
+
+        path = filedialog.askopenfilename(filetypes=[('CSV', '*.csv'), ('All files', '*.*')])
+        if not path:
+            return
+
+        import csv
+        resultados = []
+        filas_procesadas = 0
+        filas_omitidas = 0
+
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                headers = reader.fieldnames or []
+                # verificar que las columnas de input existan en el CSV
+                missing = [c for c in self.input_cols if c not in headers]
+                if missing:
+                    messagebox.showerror('Error', f'Faltan columnas de entrada en el CSV: {missing}')
+                    return
+
+                for i, row in enumerate(reader, start=1):
+                    try:
+                        # extraer valores en el orden de self.input_cols
+                        entradas_usuario = []
+                        for col in self.input_cols:
+                            val = row.get(col, '')
+                            if val == '' or val is None:
+                                raise ValueError(f'Fila {i}: columna {col} vacía')
+                            entradas_usuario.append(float(val))
+                        salida_val, categoria = self._simulate_row(np.array(entradas_usuario, dtype=float).reshape(-1))
+                        resultados.append((i, salida_val, categoria))
+                        filas_procesadas += 1
+                    except Exception:
+                        filas_omitidas += 1
+                        # continuar con siguientes filas
+        except Exception as e:
+            messagebox.showerror('Error leyendo CSV', str(e))
+            return
+
+        # preparar mensaje resumido (mostrar máximo 200 filas en el texto para no saturar)
+        lines = [f'Procesadas: {filas_procesadas}    Omitidas: {filas_omitidas}', '']
+        mostrar = resultados[:200]
+        for idx, val, cat in mostrar:
+            if cat is not None:
+                lines.append(f'Fila {idx}: {val:.6f}   Categoria: {cat}')
+            else:
+                lines.append(f'Fila {idx}: {val:.6f}')
+        if len(resultados) > 200:
+            lines.append(f'... ({len(resultados)-200} filas más omitidas en el resumen)')
+
+        messagebox.showinfo('Resultados pruebas', '\n'.join(lines))
+
+    def _simulate_row(self, x):
+        """
+        x: 1D numpy array con las entradas (n_entradas,)
+        devuelve (salida_valor(float), categoria_or_None)
+        """
+        # validaciones de tamaño
+        if x.shape[0] != self.centros.shape[1]:
+            raise ValueError(f'Número de entradas ({x.shape[0]}) no coincide con centros (esperan {self.centros.shape[1]}).')
+
+        D = np.linalg.norm(self.centros - x, axis=1)
+        D_safe = np.where(D <= 0, 1e-6, D)
+        FA = (D_safe ** 2) * np.log(D_safe)
+        phi = np.concatenate(([1.0], FA))
+        W = self.W.flatten()
+        if W.shape[0] != phi.shape[0]:
+            if W.shape[0] > phi.shape[0]:
+                W = W[:phi.shape[0]]
+            else:
+                raise ValueError(f'Longitud de pesos ({W.shape[0]}) no coincide con phi ({phi.shape[0]}).')
+        salida_valor = float(np.dot(phi, W))
+
+        salida_nombre = self.output_cols[0] if self.output_cols else 'Salida'
+        codif = self.codificaciones.get(salida_nombre, {}) if isinstance(self.codificaciones, dict) else {}
+
+        if isinstance(codif, dict) and codif:
+            inverso = {float(v): k for k, v in codif.items()}
+            codigo_closer = min(inverso.keys(), key=lambda c: abs(c - salida_valor))
+            categoria = inverso[codigo_closer]
+            return salida_valor, categoria
+        else:
+            return salida_valor, None
+
