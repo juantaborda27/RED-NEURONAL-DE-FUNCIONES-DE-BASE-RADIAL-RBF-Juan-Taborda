@@ -1,0 +1,156 @@
+{
+  "columns": {
+    "Luminosidad_Lux": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Temperatura_Ambiente_C": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Humedad_Ambiente_%": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Consumo_Electrico_W": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Sensor_Movimiento": {
+      "original_dtype": "int64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Estado_Hogar": {
+      "original_dtype": "object",
+      "converted_to": "category_codes",
+      "notes": "2 categorías",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    }
+  },
+  "global": {
+    "y_column": "Estado_Hogar",
+    "x_columns": [
+      "Luminosidad_Lux",
+      "Temperatura_Ambiente_C",
+      "Humedad_Ambiente_%",
+      "Consumo_Electrico_W",
+      "Sensor_Movimiento"
+    ],
+    "dropped_columns_high_missing": [],
+    "scaling": null,
+    "describe": {
+      "Luminosidad_Lux": {
+        "count": 60.0,
+        "mean": 520.8166666666667,
+        "std": 274.9077806339925,
+        "min": 119.0,
+        "25%": 265.75,
+        "50%": 503.0,
+        "75%": 742.5,
+        "max": 973.0
+      },
+      "Temperatura_Ambiente_C": {
+        "count": 60.0,
+        "mean": 24.814999999999998,
+        "std": 4.09057722502562,
+        "min": 18.1,
+        "25%": 21.425,
+        "50%": 25.0,
+        "75%": 28.725,
+        "max": 31.8
+      },
+      "Humedad_Ambiente_%": {
+        "count": 60.0,
+        "mean": 53.101666666666674,
+        "std": 14.431233684259897,
+        "min": 30.3,
+        "25%": 41.775,
+        "50%": 51.15,
+        "75%": 64.05,
+        "max": 79.3
+      },
+      "Consumo_Electrico_W": {
+        "count": 60.0,
+        "mean": 257.35499999999996,
+        "std": 140.69865433083743,
+        "min": 12.5,
+        "25%": 129.325,
+        "50%": 285.25,
+        "75%": 364.425,
+        "max": 486.8
+      },
+      "Sensor_Movimiento": {
+        "count": 60.0,
+        "mean": 0.65,
+        "std": 0.4809947319913076,
+        "min": 0.0,
+        "25%": 0.0,
+        "50%": 1.0,
+        "75%": 1.0,
+        "max": 1.0
+      },
+      "Estado_Hogar": {
+        "count": 60.0,
+        "mean": 0.5833333333333334,
+        "std": 0.49716711601124414,
+        "min": 0.0,
+        "25%": 0.0,
+        "50%": 1.0,
+        "75%": 1.0,
+        "max": 1.0
+      }
+    },
+    "missing_after": {
+      "Luminosidad_Lux": 0,
+      "Temperatura_Ambiente_C": 0,
+      "Humedad_Ambiente_%": 0,
+      "Consumo_Electrico_W": 0,
+      "Sensor_Movimiento": 0,
+      "Estado_Hogar": 0
+    },
+    "original_path": "datasets\\dataset_iot_domotica.csv",
+    "rows_after": 60,
+    "columns_after": [
+      "Luminosidad_Lux",
+      "Temperatura_Ambiente_C",
+      "Humedad_Ambiente_%",
+      "Consumo_Electrico_W",
+      "Sensor_Movimiento",
+      "Estado_Hogar"
+    ]
+  },
+  "mappings": {
+    "Estado_Hogar": {
+      "0": "Desocupado",
+      "1": "Ocupado"
+    }
+  }
+}
