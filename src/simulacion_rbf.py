@@ -33,8 +33,24 @@ class SimulacionPanel(tk.Frame):
         tk.Label(self, text='Simulación RBF — Cargar JSON', font=('Arial', 12, 'bold')).pack(pady=8)
         tk.Button(self, text='Cargar JSON', command=self.load_json).pack(padx=10, pady=5)
 
-        self.inputs_frame = tk.Frame(self)
-        self.inputs_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # contenedor horizontal: izquierda = entradas, derecha = resumen
+        main = tk.Frame(self)
+        main.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.inputs_frame = tk.Frame(main)
+        self.inputs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        right = tk.Frame(main, width=280)
+        right.pack(side=tk.RIGHT, fill=tk.Y)
+
+        tk.Label(right, text='Resumen JSON', font=('Arial', 10, 'bold')).pack(anchor='w')
+        self.summary_text = tk.Text(right, width=40, height=18, wrap='word', state='disabled')
+        self.summary_text.pack(fill=tk.BOTH, expand=True, pady=(4, 6))
+
+        # resultado en la misma pantalla
+        tk.Label(right, text='Resultado', font=('Arial', 10, 'bold')).pack(anchor='w')
+        self.result_label = tk.Label(right, text='(aún no calculado)', anchor='w', justify='left')
+        self.result_label.pack(fill=tk.X, pady=(4, 0))
 
         self.entries = {}  # guardar entradas dinámicas
         # datos de la red cargados desde el JSON
@@ -46,6 +62,13 @@ class SimulacionPanel(tk.Frame):
         self.columnas = []
         self.input_cols = []
         self.output_cols = []
+
+    def _set_summary(self, obj):
+        text = json.dumps(obj, indent=2, ensure_ascii=False)
+        self.summary_text.configure(state='normal')
+        self.summary_text.delete('1.0', tk.END)
+        self.summary_text.insert(tk.END, text)
+        self.summary_text.configure(state='disabled')
 
     def load_json(self):
         path = filedialog.askopenfilename(filetypes=[('JSON', '*.json')])
@@ -59,7 +82,7 @@ class SimulacionPanel(tk.Frame):
             return
 
         resumen = data.get('resumen', {}) if isinstance(data, dict) else {}
-        # PRECEDENCIA: input_names explícito (lo que pediste)
+        # PRECEDENCIA: input_names explícito
         input_cols = data.get('input_names') or resumen.get('input_names')
         # outputs explícitos si existen
         output_cols = data.get('output_names') or resumen.get('output_names') or data.get('output_name') or resumen.get('output_name')
@@ -70,13 +93,11 @@ class SimulacionPanel(tk.Frame):
 
         if not input_cols:
             if isinstance(columns, list) and columns:
-                # asumimos que todas menos la última son inputs si no hay input_names
                 if len(columns) > 1:
                     input_cols = columns[:-1]
                     if not output_cols:
                         output_cols = [columns[-1]]
                 else:
-                    # una sola columna -> tratar como input
                     input_cols = columns
             elif entradas:
                 try:
@@ -89,7 +110,6 @@ class SimulacionPanel(tk.Frame):
 
         # si no hay outputs, intentar inferir
         if not output_cols and isinstance(columns, list) and columns:
-            # si input_cols ya coincide con parte de columns, la salida será lo restante
             if set(input_cols) and all(c in columns for c in input_cols):
                 output_cols = [c for c in columns if c not in input_cols]
             if not output_cols and len(columns) > len(input_cols):
@@ -114,7 +134,10 @@ class SimulacionPanel(tk.Frame):
         self.input_cols = input_cols or []
         self.output_cols = output_cols or []
 
-        # limpiar contenido anterior
+        # mostrar resumen completo en el panel derecho
+        self._set_summary(resumen if resumen else data)
+
+        # limpiar contenido anterior (entradas)
         for w in self.inputs_frame.winfo_children():
             w.destroy()
         self.entries.clear()
@@ -135,7 +158,7 @@ class SimulacionPanel(tk.Frame):
 
         info_text = 'Entradas cargadas: ' + ', '.join(self.input_cols)
         if self.output_cols:
-            info_text += 'Salida(s) detectada(s): ' + ', '.join(self.output_cols)
+            info_text += '\nSalida(s) detectada(s): ' + ', '.join(self.output_cols)
         tk.Label(self.inputs_frame, text=info_text).pack(pady=6)
 
         tk.Button(self.inputs_frame, text='CALCULAR SALIDA', command=self.calcular_salida).pack(pady=10)
@@ -190,12 +213,8 @@ class SimulacionPanel(tk.Frame):
             else:
                 mensaje = f'Salida estimada ({salida_nombre}): {salida_valor:.6f}'
 
-            messagebox.showinfo('Resultado de simulación', mensaje)
+            # mostrar resultado EN LA MISMA PANTALLA
+            self.result_label.config(text=mensaje)
 
         except Exception as e:
             messagebox.showerror('Error en simulación', str(e))
-
-
-# Ejemplo de uso desde la ventana principal:
-# def show_simulacion_view(self):
-#     launch_simulation_panel(self.content, self)
