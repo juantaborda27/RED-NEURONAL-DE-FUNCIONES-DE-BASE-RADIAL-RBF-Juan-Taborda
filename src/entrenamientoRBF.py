@@ -18,13 +18,6 @@ class EntrenamientoRBF:
         return True
 
     def calcular_distancias(self, X: np.ndarray, R: np.ndarray):
-        """
-        Vectorizado:
-        - X: (N, n_inputs)
-        - R: (M, n_inputs)
-        Resultado D: (N, M)
-        Además guarda self.patrones = X para poder mostrar el vector de cada fila.
-        """
         if X is None or R is None:
             messagebox.showerror("Datos faltantes", "Debe inicializar los centros radiales y cargar el dataset.")
             return None
@@ -55,7 +48,6 @@ class EntrenamientoRBF:
         return self.funcion_activacion
 
     def generar_resumen_texto(self, max_rows: int = 20):
-        """Construye un texto que mapea cada patrón X_i a su fila D[i] y FA[i]."""
         if self.distancias is None or self.funcion_activacion is None or self.patrones is None:
             return "Aún no se han calculado distancias ni función de activación."
 

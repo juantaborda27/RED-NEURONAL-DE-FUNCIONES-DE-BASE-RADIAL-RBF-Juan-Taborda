@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Importamos la lógica de entrenamiento RBF
 from entrenamientoRBF import EntrenamientoRBF
 from interpolacionRBF import InterpolacionRBF
 from guardar_resultados import GuardarResultadosRBF
@@ -94,9 +93,7 @@ class RBFApp(tk.Tk):
         else:
             raise ValueError("Formato no soportado. Usa CSV o Excel.")
 
-    # ==========================================
     # Vista: ENTRENAMIENTO
-    # ==========================================
     def show_entrenamiento_view(self):
         self.clear_content()
         frame = tk.Frame(self.content)
@@ -193,9 +190,7 @@ class RBFApp(tk.Tk):
         ).pack(anchor="w", pady=6)
 
 
-        # ================================
         # Panel dividido para los resultados
-        # ================================
         result_container = tk.Frame(right)
         result_container.pack(fill=tk.BOTH, expand=True, pady=8)
 
@@ -216,15 +211,11 @@ class RBFApp(tk.Tk):
         self.txt_resultados_interp.configure(state="disabled")
 
 
-    # ==========================================
     # Vista: SIMULACIÓN
-    # ==========================================
     def show_simulacion_view(self):
         launch_simulation_panel(self.content, self)
 
-    # ==========================================
     # Acciones
-    # ==========================================
     def load_other_file(self):
         file = filedialog.askopenfilename(
             title="Seleccionar dataset",
@@ -339,7 +330,7 @@ class RBFApp(tk.Tk):
         n_centros = int(val)
         if n_centros < entradas:
             messagebox.showerror("Valor inválido",
-                                 f"El número de centros ({n_centros}) debe ser ≥ número de entradas ({entradas}).")
+                                    f"El número de centros ({n_centros}) debe ser ≥ número de entradas ({entradas}).")
             return
 
         self.n_centros = n_centros
@@ -453,9 +444,7 @@ class RBFApp(tk.Tk):
         self.guardar_resultados.guardar(resumen, centros, distancias, fa, matriz_interp, pesos)
 
 
-    # ==========================================
     # Vista: PREPROCESAMIENTO
-    # ==========================================
     def show_preprocesamiento_view(self):
         self.clear_content()
         frame = tk.Frame(self.content)
@@ -593,9 +582,7 @@ class RBFApp(tk.Tk):
             lines.append(f"Columnas eliminadas (missing alto): {', '.join(dropped_cols)}")
         self.txt_prep_preview.insert(tk.END, "\n".join(lines))
 
-        # ---------------------------------------------------------
         # NUEVO: construir y mostrar mapeos de codificación categórica
-        # ---------------------------------------------------------
         try:
             import pandas as pd
             mappings = {}  # col -> {original_value: encoded_value}
@@ -785,8 +772,6 @@ class RBFApp(tk.Tk):
             messagebox.showerror("Error", f"Ocurrió un error al calcular errores:\n{ex}")
     
     def visualizar_entrenamiento(self):
-        
-
         try:
             # --- 1) Obtener A (preferentemente matriz_A) y pesos W ---
             A = None
@@ -1017,9 +1002,7 @@ class RBFApp(tk.Tk):
         except Exception as ex:
             messagebox.showerror("Error visualización", f"Ocurrió un error al preparar la visualización:\n{ex}")
 
-# ==========================================
 # Punto de entrada
-# ==========================================
 if __name__ == "__main__":
     app = RBFApp()
     app.mainloop()

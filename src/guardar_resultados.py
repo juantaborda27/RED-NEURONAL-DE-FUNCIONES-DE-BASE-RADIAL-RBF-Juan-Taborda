@@ -10,7 +10,6 @@ class GuardarResultadosRBF:
         self.carpeta.mkdir(exist_ok=True)
 
     def guardar(self, resumen, centros, distancias, fa, matriz_interp, pesos):
-        """Guarda todos los datos del entrenamiento en un JSON, permitiendo al usuario definir el nombre."""
         if resumen is None:
             messagebox.showwarning("Sin datos", "No hay resumen de entrenamiento para guardar.")
             return

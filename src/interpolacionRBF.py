@@ -8,9 +8,7 @@ class InterpolacionRBF:
         self.vector_Y = None
         self.pesos = None
 
-    # ------------------------------------------------------------
     # Calcular matriz de interpolación A y pesos W
-    # ------------------------------------------------------------
     def calcular_pesos(self, funcion_activacion: np.ndarray, salidas: np.ndarray):
         """
         Calcula los pesos W resolviendo A * W = Y mediante pseudoinversa.
@@ -33,9 +31,7 @@ class InterpolacionRBF:
 
         return W
 
-    # ------------------------------------------------------------
     # Generar texto de resultado
-    # ------------------------------------------------------------
     def generar_resumen_texto(self):
         if self.matriz_A is None or self.vector_Y is None or self.pesos is None:
             return "Aún no se ha calculado la matriz de interpolación ni los pesos."

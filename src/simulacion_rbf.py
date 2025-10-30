@@ -264,7 +264,6 @@ class SimulacionPanel(tk.Frame):
             messagebox.showerror('Error en simulación', str(e))
 
     def load_testset(self):
-        """Carga un CSV con patrones de prueba y ejecuta la simulación sobre cada fila."""
         if self.W is None or self.centros is None:
             messagebox.showwarning('Aviso', 'Primero cargue un JSON con pesos/centros.')
             return
@@ -274,57 +273,108 @@ class SimulacionPanel(tk.Frame):
             return
 
         import csv
-        resultados = []
-        filas_procesadas = 0
-        filas_omitidas = 0
+        resultados = []  # (fila_idx, pred, real_or_None, error_or_None, categoria_or_None)
+        procesadas = 0
+        omitidas = 0
 
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 headers = reader.fieldnames or []
-                # verificar que las columnas de input existan en el CSV
+
+                # verificar inputs
                 missing = [c for c in self.input_cols if c not in headers]
                 if missing:
                     messagebox.showerror('Error', f'Faltan columnas de entrada en el CSV: {missing}')
                     return
 
+                # decidir columna real
+                if self.output_cols and self.output_cols[0] in headers:
+                    output_col = self.output_cols[0]
+                else:
+                    output_col = headers[-1] if headers else None
+
                 for i, row in enumerate(reader, start=1):
                     try:
-                        # extraer valores en el orden de self.input_cols
                         entradas_usuario = []
                         for col in self.input_cols:
                             val = row.get(col, '')
                             if val == '' or val is None:
                                 raise ValueError(f'Fila {i}: columna {col} vacía')
                             entradas_usuario.append(float(val))
-                        salida_val, categoria = self._simulate_row(np.array(entradas_usuario, dtype=float).reshape(-1))
-                        resultados.append((i, salida_val, categoria))
-                        filas_procesadas += 1
+                        pred, cat = self._simulate_row(np.array(entradas_usuario, dtype=float).reshape(-1))
+
+                        real_raw = None
+                        err = None
+                        if output_col:
+                            real_raw = row.get(output_col, '')
+                            if real_raw != '':
+                                try:
+                                    real_num = float(real_raw)
+                                    err = pred - real_num
+                                    real_val = real_num
+                                except Exception:
+                                    real_val = real_raw  # categórica
+                                    err = None
+                            else:
+                                real_val = None
+                        else:
+                            real_val = None
+
+                        resultados.append((i, pred, real_val, err, cat))
+                        procesadas += 1
                     except Exception:
-                        filas_omitidas += 1
-                        # continuar con siguientes filas
+                        omitidas += 1
+                        continue
         except Exception as e:
             messagebox.showerror('Error leyendo CSV', str(e))
             return
 
-        # preparar mensaje resumido (mostrar máximo 200 filas en el texto para no saturar)
-        lines = [f'Procesadas: {filas_procesadas}    Omitidas: {filas_omitidas}', '']
+        # Construir mensaje para messagebox (limitado a 200 filas para no saturar)
+        lines = []
+        lines.append("RESULTADOS DE SIMULACIÓN")
+        lines.append(f"Procesadas: {procesadas}   Omitidas: {omitidas}")
+        lines.append("-" * 40)
         mostrar = resultados[:200]
-        for idx, val, cat in mostrar:
-            if cat is not None:
-                lines.append(f'Fila {idx}: {val:.6f}   Categoria: {cat}')
+        for idx, pred, real, err, cat in mostrar:
+            if real is None:
+                lines.append(f"Fila {idx:>4}: Predicho = {pred:.6f}" + (f"   [{cat}]" if cat else ""))
             else:
-                lines.append(f'Fila {idx}: {val:.6f}')
-        if len(resultados) > 200:
-            lines.append(f'... ({len(resultados)-200} filas más omitidas en el resumen)')
+                if err is None:
+                    lines.append(f"Fila {idx:>4}: Predicho = {pred:.6f}   Real = {real}"+ (f"   [{cat}]" if cat else ""))
+                else:
+                    lines.append(f"Fila {idx:>4}: Predicho = {pred:.6f}   Real = {real:.6f}   Error = {err:.6f}" + (f"   [{cat}]" if cat else ""))
 
-        messagebox.showinfo('Resultados pruebas', '\n'.join(lines))
+        if len(resultados) > 200:
+            lines.append(f"... (se muestran 200 de {len(resultados)})")
+
+        messagebox.showinfo('Resultados pruebas', "\n".join(lines))
+
+        # Si hay reales numéricos, graficar Predicho vs Real (simple)
+        reales_numeric = [r for r in resultados if isinstance(r[2], (int, float, np.floating))]
+        if reales_numeric:
+            try:
+                import matplotlib.pyplot as plt
+                preds = [r[1] for r in reales_numeric]
+                reals = [float(r[2]) for r in reales_numeric]
+                # gráfica simple
+                plt.figure(figsize=(6,4))
+                plt.scatter(reals, preds, alpha=0.7, s=30)
+                mn = min(min(reals), min(preds))
+                mx = max(max(reals), max(preds))
+                plt.plot([mn, mx], [mn, mx], linestyle='--', label='y = x')
+                plt.xlabel('Real')
+                plt.ylabel('Predicho')
+                plt.title('Predicho vs Real')
+                plt.legend()
+                plt.tight_layout()
+                plt.show()
+            except Exception:
+                # si plotting falla, no interrumpe; ya mostramos resultados en el messagebox
+                pass
+
 
     def _simulate_row(self, x):
-        """
-        x: 1D numpy array con las entradas (n_entradas,)
-        devuelve (salida_valor(float), categoria_or_None)
-        """
         # validaciones de tamaño
         if x.shape[0] != self.centros.shape[1]:
             raise ValueError(f'Número de entradas ({x.shape[0]}) no coincide con centros (esperan {self.centros.shape[1]}).')

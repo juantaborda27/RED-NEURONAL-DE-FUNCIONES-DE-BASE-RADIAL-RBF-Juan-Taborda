@@ -15,10 +15,6 @@ class Preprocesador:
         }
 
     def identify_xy(self, df: pd.DataFrame, y_column: Optional[str] = None) -> Tuple[pd.DataFrame, str]:
-        """
-        Identifica columna Y. Si y_column es None, toma la última columna.
-        Retorna (df, y_col_name)
-        """
         if y_column and y_column in df.columns:
             y_col = y_column
         else:
@@ -28,10 +24,6 @@ class Preprocesador:
         return df, y_col
 
     def convert_non_numeric(self, df: pd.DataFrame, threshold_for_numeric=0.6):
-        """
-        Intenta convertir columnas object a numéricas. Si falla (muchos NaNs resultantes),
-        se convierten a categoría y se guardan mappings de códigos.
-        """
         for col in df.columns:
             col_info = {"original_dtype": str(df[col].dtype)}
             if pd.api.types.is_numeric_dtype(df[col]):
@@ -67,9 +59,6 @@ class Preprocesador:
         return df
 
     def drop_high_missing(self, df: pd.DataFrame, col_threshold: float = 0.5) -> pd.DataFrame:
-        """
-        Elimina columnas con ratio de valores faltantes mayor a col_threshold.
-        """
         cols_to_drop = []
         for col in df.columns:
             missing_ratio = df[col].isna().mean()
@@ -88,12 +77,6 @@ class Preprocesador:
         return df
 
     def fill_missing(self, df: pd.DataFrame, strategy: str = "mean", fill_categorical: str = "mode", drop_rows: bool = False) -> pd.DataFrame:
-        """
-        Rellena valores faltantes:
-        - strategy para numéricos: 'mean', 'median', 'mode', 'ffill', 'bfill'
-        - fill_categorical: 'mode' o 'unknown'
-        - drop_rows: si True elimina filas con NA restantes
-        """
         for col in df.columns:
             if pd.api.types.is_numeric_dtype(df[col]):
                 if df[col].isna().sum() == 0:
@@ -146,11 +129,6 @@ class Preprocesador:
         return df
 
     def scale_features(self, df: pd.DataFrame, x_columns: list, method: Optional[str] = None):
-        """
-        Escalado de X:
-        - method: None | 'standard' | 'minmax'
-        Guarda parámetros en report.
-        """
         scaling_info = {}
         if method is None:
             self.report["global"]["scaling"] = None
@@ -177,9 +155,6 @@ class Preprocesador:
         return df
 
     def basic_statistics(self, df: pd.DataFrame):
-        """
-        Guarda estadísticas básicas en el reporte (describe y conteos faltantes).
-        """
         try:
             desc = df.describe(include='all').to_dict()
         except Exception:
