@@ -1,4 +1,4 @@
-# src/entrenamientoRBF.py (fragmento reemplazo)
+# src/entrenamientoRBF.py
 import numpy as np
 from tkinter import messagebox
 

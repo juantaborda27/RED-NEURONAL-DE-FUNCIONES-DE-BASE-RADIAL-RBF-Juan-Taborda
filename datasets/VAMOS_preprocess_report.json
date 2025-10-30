@@ -1,0 +1,157 @@
+{
+  "columns": {
+    "Frecuencia_Respiratoria_rpm": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Saturacion_Oxigeno_%": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Frecuencia_Cardiaca_lpm": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Temperatura_Corporal_C": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Flujo_Espiratorio_Ls": {
+      "original_dtype": "float64",
+      "converted_to": "numeric",
+      "notes": "",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    },
+    "Estado_Respiratorio": {
+      "original_dtype": "object",
+      "converted_to": "category_codes",
+      "notes": "3 categorías",
+      "missing_before": 0,
+      "missing_ratio_before": 0.0,
+      "fill_used": null,
+      "missing_after": 0
+    }
+  },
+  "global": {
+    "y_column": "Estado_Respiratorio",
+    "x_columns": [
+      "Frecuencia_Respiratoria_rpm",
+      "Saturacion_Oxigeno_%",
+      "Frecuencia_Cardiaca_lpm",
+      "Temperatura_Corporal_C",
+      "Flujo_Espiratorio_Ls"
+    ],
+    "dropped_columns_high_missing": [],
+    "scaling": null,
+    "describe": {
+      "Frecuencia_Respiratoria_rpm": {
+        "count": 60.0,
+        "mean": 21.688333333333333,
+        "std": 7.630605006705665,
+        "min": 10.5,
+        "25%": 14.6,
+        "50%": 21.2,
+        "75%": 27.85,
+        "max": 34.2
+      },
+      "Saturacion_Oxigeno_%": {
+        "count": 60.0,
+        "mean": 90.76500000000001,
+        "std": 5.258079336134513,
+        "min": 82.1,
+        "25%": 86.4,
+        "50%": 91.05000000000001,
+        "75%": 95.75,
+        "max": 99.8
+      },
+      "Frecuencia_Cardiaca_lpm": {
+        "count": 60.0,
+        "mean": 89.66666666666667,
+        "std": 21.64401249390136,
+        "min": 56.0,
+        "25%": 72.75,
+        "50%": 86.5,
+        "75%": 106.25,
+        "max": 129.0
+      },
+      "Temperatura_Corporal_C": {
+        "count": 60.0,
+        "mean": 37.51999999999999,
+        "std": 1.1502100029331417,
+        "min": 35.5,
+        "25%": 36.5,
+        "50%": 37.75,
+        "75%": 38.4,
+        "max": 39.4
+      },
+      "Flujo_Espiratorio_Ls": {
+        "count": 60.0,
+        "mean": 3.9971666666666668,
+        "std": 1.3422067481585167,
+        "min": 1.57,
+        "25%": 2.9975,
+        "50%": 4.085,
+        "75%": 5.1625000000000005,
+        "max": 5.96
+      },
+      "Estado_Respiratorio": {
+        "count": 60.0,
+        "mean": 0.9,
+        "std": 0.602255647052628,
+        "min": 0.0,
+        "25%": 1.0,
+        "50%": 1.0,
+        "75%": 1.0,
+        "max": 2.0
+      }
+    },
+    "missing_after": {
+      "Frecuencia_Respiratoria_rpm": 0,
+      "Saturacion_Oxigeno_%": 0,
+      "Frecuencia_Cardiaca_lpm": 0,
+      "Temperatura_Corporal_C": 0,
+      "Flujo_Espiratorio_Ls": 0,
+      "Estado_Respiratorio": 0
+    },
+    "original_path": "datasets\\dataset_medico_respiratorio.csv",
+    "rows_after": 60,
+    "columns_after": [
+      "Frecuencia_Respiratoria_rpm",
+      "Saturacion_Oxigeno_%",
+      "Frecuencia_Cardiaca_lpm",
+      "Temperatura_Corporal_C",
+      "Flujo_Espiratorio_Ls",
+      "Estado_Respiratorio"
+    ]
+  },
+  "mappings": {
+    "Estado_Respiratorio": {
+      "0": "Alerta",
+      "1": "Crítico",
+      "2": "Estable"
+    }
+  }
+}

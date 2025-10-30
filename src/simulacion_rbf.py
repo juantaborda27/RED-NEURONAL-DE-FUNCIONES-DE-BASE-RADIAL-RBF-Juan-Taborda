@@ -1,6 +1,6 @@
 import json
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import numpy as np
 
 
@@ -29,39 +29,84 @@ class SimulacionPanel(tk.Frame):
         super().__init__(parent)
         self.app_ref = app_ref
         self.pack(fill=tk.BOTH, expand=True)
+        # --- estilos básicos ---
+        self.style = ttk.Style()
+        try:
+            self.style.theme_use("clam")
+        except Exception:
+            pass
 
-        tk.Label(self, text='Simulación RBF — Cargar JSON', font=('Arial', 12, 'bold')).pack(pady=8)
-        tk.Button(self, text='Cargar JSON', command=self.load_json).pack(padx=10, pady=5)
+        # Encabezado
+        hdr = ttk.Frame(self)
+        hdr.pack(fill=tk.X, padx=12, pady=(10, 6))
+        ttk.Label(hdr, text='Simulación RBF', font=('Arial', 14, 'bold')).pack(side=tk.LEFT)
+        ttk.Button(hdr, text='Cargar JSON', command=self.load_json).pack(side=tk.RIGHT)
 
-        # contenedor horizontal: izquierda = entradas, derecha = resumen
-        main = tk.Frame(self)
-        main.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Paned window para dividir izquierda (entradas) y derecha (resumen+resultado)
+        paned = ttk.Panedwindow(self, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True, padx=12, pady=6)
 
-        self.inputs_frame = tk.Frame(main)
-        self.inputs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Panel izquierdo: entradas y controles
+        left = ttk.Frame(paned)
+        paned.add(left, weight=3)
 
-        right = tk.Frame(main, width=280)
-        right.pack(side=tk.RIGHT, fill=tk.Y)
+        left_top = ttk.LabelFrame(left, text="Entradas para simulación")
+        left_top.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
 
-        tk.Label(right, text='Resumen JSON', font=('Arial', 10, 'bold')).pack(anchor='w')
-        self.summary_text = tk.Text(right, width=40, height=18, wrap='word', state='disabled')
-        self.summary_text.pack(fill=tk.BOTH, expand=True, pady=(4, 6))
+        # Contenedor con grid para labels+entries
+        self.form_frame = ttk.Frame(left_top)
+        self.form_frame.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
 
-        # resultado en la misma pantalla
-        tk.Label(right, text='Resultado', font=('Arial', 10, 'bold')).pack(anchor='w')
-        self.result_label = tk.Label(right, text='(aún no calculado)', anchor='w', justify='left')
-        self.result_label.pack(fill=tk.X, pady=(4, 0))
+        # area de botones en la parte inferior izquierda
+        left_bottom = ttk.Frame(left)
+        left_bottom.pack(fill=tk.X, padx=6, pady=(0, 6))
+        self.btn_calc = ttk.Button(left_bottom, text='CALCULAR SALIDA', command=self.calcular_salida)
+        self.btn_calc.pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(left_bottom, text='Limpiar', command=self._limpiar_inputs).pack(side=tk.LEFT)
 
-        self.entries = {}  # guardar entradas dinámicas
-        # datos de la red cargados desde el JSON
-        self.centros = None  # shape: (n_centros, n_entradas)
-        self.W = None        # shape: (n_centros+1,)
+        # Panel derecho: resumen y resultado
+        right = ttk.Frame(paned, width=380)
+        paned.add(right, weight=2)
+
+        # Resultado grande arriba
+        res_frame = ttk.Frame(right)
+        res_frame.pack(fill=tk.X, padx=6, pady=(6, 4))
+        ttk.Label(res_frame, text='Resultado', font=('Arial', 10, 'bold')).pack(anchor='w')
+        self.result_label = ttk.Label(res_frame, text='(aún no calculado)', anchor='w', justify='left')
+        # usar fuente grande y negrita para destacar
+        self.result_label.config(font=('Arial', 16, 'bold'))
+        self.result_label.pack(fill=tk.X, pady=(4, 6))
+
+        # Resumen JSON con scrollbar
+        summ_frame = ttk.LabelFrame(right, text="Resumen JSON")
+        summ_frame.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+
+        self.summary_text = tk.Text(summ_frame, wrap='word', height=18)
+        self.summary_text.configure(state='disabled')
+        vsb = ttk.Scrollbar(summ_frame, orient='vertical', command=self.summary_text.yview)
+        self.summary_text.configure(yscrollcommand=vsb.set)
+        self.summary_text.grid(row=0, column=0, sticky='nsew')
+        vsb.grid(row=0, column=1, sticky='ns')
+        summ_frame.rowconfigure(0, weight=1)
+        summ_frame.columnconfigure(0, weight=1)
+
+        # estado interno
+        self.entries = {}
+        self.centros = None
+        self.W = None
         self.errorMSE = None
         self.error_permitido = None
         self.codificaciones = {}
         self.columnas = []
         self.input_cols = []
         self.output_cols = []
+
+    def _limpiar_inputs(self):
+        # limpia los inputs que se han creado
+        for w in list(self.form_frame.winfo_children()):
+            w.destroy()
+        self.entries.clear()
+        self.result_label.config(text='(aún no calculado)')
 
     def _set_summary(self, obj):
         text = json.dumps(obj, indent=2, ensure_ascii=False)
@@ -82,12 +127,9 @@ class SimulacionPanel(tk.Frame):
             return
 
         resumen = data.get('resumen', {}) if isinstance(data, dict) else {}
-        # PRECEDENCIA: input_names explícito
+        # prioridad a input_names
         input_cols = data.get('input_names') or resumen.get('input_names')
-        # outputs explícitos si existen
         output_cols = data.get('output_names') or resumen.get('output_names') or data.get('output_name') or resumen.get('output_name')
-
-        # si no hay input_names, intentar columnas o generar por entradas
         columns = resumen.get('columns') or data.get('columns')
         entradas = resumen.get('entradas') or data.get('entradas')
 
@@ -108,14 +150,12 @@ class SimulacionPanel(tk.Frame):
             else:
                 input_cols = []
 
-        # si no hay outputs, intentar inferir
         if not output_cols and isinstance(columns, list) and columns:
             if set(input_cols) and all(c in columns for c in input_cols):
                 output_cols = [c for c in columns if c not in input_cols]
             if not output_cols and len(columns) > len(input_cols):
                 output_cols = [columns[-1]]
 
-        # cargar centros radiales y pesos desde el JSON si existen
         centros_json = data.get('centros_radiales') or data.get('centros') or data.get('radios') or data.get('radios_centros')
         if centros_json:
             try:
@@ -126,7 +166,6 @@ class SimulacionPanel(tk.Frame):
         pesos_json = data.get('pesos')
         self.W = _pesos_from_json(pesos_json)
 
-        # errores y codificaciones opcionales
         self.errorMSE = data.get('errorMSE') or resumen.get('errorMSE') or resumen.get('error_optimo')
         self.error_permitido = resumen.get('error_optimo') or data.get('error_optimo')
         self.codificaciones = data.get('codificaciones') or data.get('mapeos') or {}
@@ -134,34 +173,32 @@ class SimulacionPanel(tk.Frame):
         self.input_cols = input_cols or []
         self.output_cols = output_cols or []
 
-        # mostrar resumen completo en el panel derecho
+        # mostrar resumen
         self._set_summary(resumen if resumen else data)
 
-        # limpiar contenido anterior (entradas)
-        for w in self.inputs_frame.winfo_children():
+        # limpiar e insertar inputs con grid (alineado)
+        for w in list(self.form_frame.winfo_children()):
             w.destroy()
         self.entries.clear()
 
         if not self.input_cols:
-            tk.Label(self.inputs_frame, text='No se encontraron nombres de entradas (input_names) en el JSON.').pack()
+            ttk.Label(self.form_frame, text='No se encontraron nombres de entradas (input_names) en el JSON.').grid(row=0, column=0, sticky='w')
             return
 
-        # crear labels + entries dinámicos SOLO para inputs
-        for i, col in enumerate(self.input_cols, 1):
-            frame = tk.Frame(self.inputs_frame)
-            frame.pack(fill=tk.X, pady=3)
-            tk.Label(frame, text=f'{col}:', width=25, anchor='w').pack(side=tk.LEFT)
-            var = tk.StringVar()
-            entry = tk.Entry(frame, textvariable=var, width=20)
-            entry.pack(side=tk.LEFT)
-            self.entries[col] = var
+        # crear labels+entries en grid con columnas fijas
+        for i, col in enumerate(self.input_cols):
+            lbl = ttk.Label(self.form_frame, text=f'{col}:')
+            ent_var = tk.StringVar()
+            ent = ttk.Entry(self.form_frame, textvariable=ent_var, width=18)
+            lbl.grid(row=i, column=0, padx=(0, 8), pady=4, sticky='w')
+            ent.grid(row=i, column=1, padx=(0, 4), pady=4, sticky='w')
+            self.entries[col] = ent_var
 
-        info_text = 'Entradas cargadas: ' + ', '.join(self.input_cols)
+        # info resumen justo debajo de inputs
+        info = 'Entradas: ' + ', '.join(self.input_cols)
         if self.output_cols:
-            info_text += '\nSalida(s) detectada(s): ' + ', '.join(self.output_cols)
-        tk.Label(self.inputs_frame, text=info_text).pack(pady=6)
-
-        tk.Button(self.inputs_frame, text='CALCULAR SALIDA', command=self.calcular_salida).pack(pady=10)
+            info += '\nSalida(s): ' + ', '.join(self.output_cols)
+        ttk.Label(self.form_frame, text=info).grid(row=len(self.input_cols), column=0, columnspan=2, pady=(8, 4), sticky='w')
 
     def calcular_salida(self):
         # validaciones simples
@@ -170,7 +207,6 @@ class SimulacionPanel(tk.Frame):
             return
 
         try:
-            # capturar entradas en el orden de self.input_cols
             entradas_usuario = []
             for col in self.input_cols:
                 s = self.entries[col].get()
@@ -180,18 +216,15 @@ class SimulacionPanel(tk.Frame):
 
             x = np.array(entradas_usuario, dtype=float).reshape(-1)  # vector (n_entradas,)
 
-            # calcular distancias a cada centro R_j
             if x.shape[0] != self.centros.shape[1]:
                 raise ValueError(f'Número de entradas ({x.shape[0]}) no coincide con centros (esperan {self.centros.shape[1]}).')
 
-            D = np.linalg.norm(self.centros - x, axis=1)  # shape (n_centros,)
+            D = np.linalg.norm(self.centros - x, axis=1)
             D_safe = np.where(D <= 0, 1e-6, D)
-            FA = (D_safe ** 2) * np.log(D_safe)  # función de activación para cada centro
+            FA = (D_safe ** 2) * np.log(D_safe)
 
-            # construir vector phi: [1, FA1, FA2, ...]
-            phi = np.concatenate(([1.0], FA))  # shape (n_centros+1,)
+            phi = np.concatenate(([1.0], FA))
 
-            # asegurar que W tenga longitud compatible
             W = self.W.flatten()
             if W.shape[0] != phi.shape[0]:
                 if W.shape[0] > phi.shape[0]:
@@ -201,7 +234,6 @@ class SimulacionPanel(tk.Frame):
 
             salida_valor = float(np.dot(phi, W))
 
-            # tratar codificaciones (si la última columna es categórica mapeada)
             salida_nombre = self.output_cols[0] if self.output_cols else 'Salida'
             codif = self.codificaciones.get(salida_nombre, {}) if isinstance(self.codificaciones, dict) else {}
 
@@ -209,12 +241,21 @@ class SimulacionPanel(tk.Frame):
                 inverso = {float(v): k for k, v in codif.items()}
                 codigo_closer = min(inverso.keys(), key=lambda c: abs(c - salida_valor))
                 categoria = inverso[codigo_closer]
-                mensaje = f'Salida estimada ({salida_nombre}): {salida_valor:.6f} Categoría: {categoria}'
+                mensaje = f'Salida estimada ({salida_nombre}): {salida_valor:.6f}   Categoría: {categoria}'
+                # color según categoría si coincide con palabras comunes
+                color = '#0b6b0b'  # verde por defecto
+                if isinstance(categoria, str):
+                    cat_low = categoria.lower()
+                    if 'alta' in cat_low or 'alto' in cat_low:
+                        color = '#b20000'
+                    elif 'media' in cat_low or 'med' in cat_low:
+                        color = '#b26b00'
             else:
                 mensaje = f'Salida estimada ({salida_nombre}): {salida_valor:.6f}'
+                color = '#0b6b0b'
 
-            # mostrar resultado EN LA MISMA PANTALLA
-            self.result_label.config(text=mensaje)
+            # Mostrar resultado grande y en negrita en el panel derecho
+            self.result_label.config(text=mensaje, foreground=color)
 
         except Exception as e:
             messagebox.showerror('Error en simulación', str(e))
